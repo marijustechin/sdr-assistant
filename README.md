@@ -25,12 +25,18 @@ Monorepo with a **NestJS (Fastify)** API and a **Next.js** web app, backed by
 │   │       ├── main.ts
 │   │       ├── app.module.ts
 │   │       ├── health/       # GET /health
+│   │       ├── products/     # /products CRUD endpoint (create, list, get)
 │   │       ├── prisma/       # PrismaService / PrismaModule
 │   │       └── scripts/      # check-db.ts
 │   └── web/                  # Next.js
+│       ├── lib/api.ts        # API base URL helper
 │       └── app/
 │           ├── page.tsx
-│           └── health/page.tsx
+│           ├── health/page.tsx
+│           └── products/
+│               ├── page.tsx          # product list
+│               ├── actions.ts        # server action (create product)
+│               └── new/              # product form
 └── package.json              # npm workspaces + root scripts
 ```
 
@@ -71,11 +77,28 @@ npm run dev:web
 
 | URL                              | Result                                  |
 | -------------------------------- | --------------------------------------- |
-| http://localhost:4000/health     | `200` with `{"status":"ok"}`            |
+| `GET http://localhost:4000/health` | `200` with `{"status":"ok"}`          |
+| `GET http://localhost:4000/products` | List products (newest first)        |
+| `GET http://localhost:4000/products/:id` | One product, or `404`          |
+| `POST http://localhost:4000/products` | Create a product (`name`, `description`) |
 | http://localhost:3000/health     | Page that fetches and shows API health  |
+| http://localhost:3000/products   | Product list                            |
+| http://localhost:3000/products/new | Create-product form                  |
 
 The web app reads the API base URL from `API_URL` (default
-`http://localhost:4000`) — see `apps/web/.env.example`.
+`http://localhost:4000`) — see `apps/web/.env.example`. The create form posts
+through a Next.js server action, so the API does not need CORS for it.
+
+### Product API
+
+```bash
+curl -X POST http://localhost:4000/products \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Analytics Suite","description":"Product analytics for SDR teams"}'
+```
+
+Validation (via `class-validator`): `name` is required, max 200 chars;
+`description` is optional, max 2000 chars. Unknown fields are rejected.
 
 ## Scripts
 

@@ -1,7 +1,7 @@
 import 'dotenv/config'
 import 'reflect-metadata'
 
-import { Logger } from '@nestjs/common'
+import { Logger, ValidationPipe } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
 import {
   FastifyAdapter,
@@ -19,6 +19,13 @@ const app = await NestFactory.create<NestFastifyApplication>(
 )
 
 app.enableShutdownHooks()
+app.useGlobalPipes(
+  new ValidationPipe({
+    whitelist: true,
+    forbidNonWhitelisted: true,
+    transform: true,
+  }),
+)
 
 await app.listen({ port, host })
 

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="SDR Assistant">
+  <rect width="32" height="32" rx="8" fill="#3b82f6" />
+  <circle cx="10" cy="11" r="2.5" fill="#fff" />
+  <circle cx="22" cy="16" r="2.5" fill="#fff" />
+  <circle cx="10" cy="21" r="2.5" fill="#fff" />
+  <path d="M12 12l8 3M12 20l8-3" stroke="#fff" stroke-width="1.6" stroke-linecap="round" />
+</svg>

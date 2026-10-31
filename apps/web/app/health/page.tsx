@@ -1,12 +1,12 @@
 import type { Metadata } from 'next'
 
+import { apiUrl } from '@/lib/api'
+
 export const metadata: Metadata = {
   title: 'Backend health | SDR Assistant',
 }
 
 export const dynamic = 'force-dynamic'
-
-const apiUrl = (process.env.API_URL ?? 'http://localhost:4000').replace(/\/$/, '')
 
 type HealthBody = { status: string }
 
