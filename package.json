@@ -1,0 +1,31 @@
+{
+  "name": "sdr-assistant",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/api",
+    "apps/web"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "concurrently -k -n api,web -c blue,green \"npm:dev:api\" \"npm:dev:web\"",
+    "dev:api": "npm run dev --workspace @sdr-assistant/api",
+    "dev:web": "npm run dev --workspace @sdr-assistant/web",
+    "build": "npm run build --workspace @sdr-assistant/api && npm run build --workspace @sdr-assistant/web",
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down",
+    "db:generate": "npm run db:generate --workspace @sdr-assistant/api",
+    "db:check": "npm run db:check --workspace @sdr-assistant/api",
+    "db:migrate": "npm run db:migrate --workspace @sdr-assistant/api"
+  },
+  "allowScripts": {
+    "prisma@7.10.1": true,
+    "@prisma/engines@7.10.1": true
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}
