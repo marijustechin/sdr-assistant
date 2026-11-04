@@ -25,7 +25,8 @@ Monorepo with a **NestJS (Fastify)** API and a **Next.js** web app, backed by
 │   │       ├── main.ts
 │   │       ├── app.module.ts
 │   │       ├── health/       # GET /health
-│   │       ├── products/     # /products CRUD endpoint (create, list, get)
+│   │       ├── products/     # /products endpoint (create, list, get)
+│   │       ├── research/     # POST /research (DeepSeek product profile)
 │   │       ├── prisma/       # PrismaService / PrismaModule
 │   │       └── scripts/      # check-db.ts
 │   └── web/                  # Next.js
@@ -36,7 +37,8 @@ Monorepo with a **NestJS (Fastify)** API and a **Next.js** web app, backed by
 │           └── products/
 │               ├── page.tsx          # product list
 │               ├── actions.ts        # server action (create product)
-│               └── new/              # product form
+│               ├── new/              # product form
+│               └── [id]/             # product detail, research + edit form
 └── package.json              # npm workspaces + root scripts
 ```
 
@@ -56,6 +58,9 @@ npm run db:check              # builds the API and verifies the DB connection
 
 `npm install` runs `prisma generate` for the API workspace (the generated
 client is written to `apps/api/src/generated/prisma` and is git-ignored).
+
+Set `DEEPSEEK_API_KEY` in `apps/api/.env` to enable `POST /research` (the API
+calls DeepSeek and logs the generated product profile).
 
 > Port `5433` is used on the host to avoid clashing with an existing PostgreSQL
 > on `5432`. Change `docker-compose.yml` and `DATABASE_URL` together if needed.
@@ -81,9 +86,13 @@ npm run dev:web
 | `GET http://localhost:4000/products` | List products (newest first)        |
 | `GET http://localhost:4000/products/:id` | One product, or `404`          |
 | `POST http://localhost:4000/products` | Create a product (`name`, `description`) |
+| `PATCH http://localhost:4000/products/:id` | Update a product (`name`, `description`) |
+| `POST http://localhost:4000/research` | Run DeepSeek research (`name`, `description`, `country`) |
 | http://localhost:3000/health     | Page that fetches and shows API health  |
 | http://localhost:3000/products   | Product list                            |
 | http://localhost:3000/products/new | Create-product form                  |
+| http://localhost:3000/products/:id | Product detail + "Start research" form |
+| http://localhost:3000/products/:id/edit | Edit-product form                 |
 
 The web app reads the API base URL from `API_URL` (default
 `http://localhost:4000`) — see `apps/web/.env.example`. The create form posts
@@ -99,6 +108,11 @@ curl -X POST http://localhost:4000/products \
 
 Validation (via `class-validator`): `name` is required, max 200 chars;
 `description` is optional, max 2000 chars. Unknown fields are rejected.
+
+The product detail page (`/products/:id`) has a **Start research** form. It posts
+the product name, description and selected country to `POST /research`, which
+asks DeepSeek (`deepseek-flash`) for a product profile, logs the result, and
+returns `{ "status": "completed" }`.
 
 ## Scripts
 

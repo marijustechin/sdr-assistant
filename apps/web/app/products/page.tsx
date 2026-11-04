@@ -81,7 +81,9 @@ export default async function ProductsPage() {
             {result.products.map((product) => (
               <li key={product.id} className="product-item">
                 <div>
-                  <h2>{product.name}</h2>
+                  <h2>
+                    <Link href={`/products/${product.id}`}>{product.name}</Link>
+                  </h2>
                   {product.description ? (
                     <p>{product.description}</p>
                   ) : (
