@@ -2,13 +2,14 @@ import { Injectable, Logger } from '@nestjs/common';
 
 import type { CreateResearchDto } from './dto/create-research.dto.js';
 
-type DeepSeekResponse = {
-  choices: {
-    message: {
-      content: string;
-    };
-  }[];
-};
+import { PRODUCT_PROFILE_PROMPT } from './stages/01-product-profile/product-profile.prompt.js';
+import { LLM_CONFIG } from './config/llm-config.js';
+
+import { collectPageCandidates } from './stages/04-normalization/collect-page-candidates.js';
+import { createProductProfile } from './stages/01-product-profile/create-product-profile.js';
+import { createResearchPlan } from './stages/02-research-plan/create-research-plan.js';
+import { runSearches } from './stages/03-discovery/run-searches.js';
+import { groupPagesBySite } from './stages/04-normalization/group-pages-by-site.js';
 
 @Injectable()
 export class ResearchService {
@@ -21,51 +22,83 @@ export class ResearchService {
     this.logger.log(
       `DeepSeek API key loaded: ${Boolean(process.env.DEEPSEEK_API_KEY)}`,
     );
+    this.logger.log(`LLM config: ${JSON.stringify(LLM_CONFIG)}`);
+    this.logger.log(`SENT SYSTEM PROMPT:\n${PRODUCT_PROFILE_PROMPT}`);
 
-    // LLM stage 1
-    const response = await fetch('https://api.deepseek.com/chat/completions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${process.env.DEEPSEEK_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'deepseek-flash',
-        thinking: { type: 'disabled' },
-        messages: [
-          {
-            role: 'system',
-            content:
-              'You prepare product profiles for market research. ' +
-              'Briefly explain what the product is, its main applications, ' +
-              'and which attributes distinguish it from similar products. ' +
-              'Identify important missing details rather than inventing them. ' +
-              'Write in English.',
-          },
-          {
-            role: 'user',
-            content: JSON.stringify(dto),
-          },
-        ],
-      }),
-    });
+    // stage 1 - prepare product profile
+    const profile = await createProductProfile(dto);
 
-    if (!response.ok) {
-      throw new Error(
-        `DeepSeek API error ${response.status}: ${await response.text()}`,
-      );
-    }
+    // stage 2 - create research plan
+    const plan = await createResearchPlan(profile, dto.country);
 
-    const data = (await response.json()) as DeepSeekResponse;
-    const profile = data.choices[0].message.content;
+    this.logger.log(`Research plan:\n${JSON.stringify(plan, null, 2)}`);
 
-    if (!profile) {
-      throw new Error('DeepSeek returned no product profile');
-    }
+    // stage 3 - search preparation & discovery
+    const { searchRuns, deferred } = await runSearches(plan, dto.country);
+    const totalResults = searchRuns.reduce(
+      (total, run) => total + run.results.length,
+      0,
+    );
 
-    this.logger.log(`Product profile:\n${profile}`);
+    this.logger.log(
+      `Search batch completed: queries=${searchRuns.length}, results=${totalResults}, deferred=${deferred.length}`,
+    );
 
-    ////////////////////////////////////////////////
+    // stage 4 - normalization & deduplication
+    const candidates = collectPageCandidates(searchRuns);
+    const siteGroups = groupPagesBySite(candidates);
+    const groupedPages = siteGroups.reduce(
+      (total, group) => total + group.pages.length,
+      0,
+    );
+
+    const groupedDiscoveries = siteGroups.reduce(
+      (total, group) =>
+        total +
+        group.pages.reduce(
+          (pageTotal, page) => pageTotal + page.discoveries.length,
+          0,
+        ),
+      0,
+    );
+
+    this.logger.log(
+      `Site grouping: sites=${siteGroups.length}, pages=${groupedPages}, discoveries=${groupedDiscoveries}`,
+    );
+
+    this.logger.log(
+      `Site groups:\n${JSON.stringify(
+        siteGroups.map((group) => ({
+          hostname: group.hostname,
+          urls: group.pages.map((page) => page.url),
+        })),
+        null,
+        2,
+      )}`,
+    );
+
+    const discoveryCount = candidates.reduce(
+      (total, candidate) => total + candidate.discoveries.length,
+      0,
+    );
+
+    this.logger.log(
+      `Page candidates: rawResults=${totalResults}, uniqueUrls=${candidates.length}, discoveries=${discoveryCount}`,
+    );
+
+    this.logger.log(
+      `Page candidates summary:\n${JSON.stringify(
+        candidates.map((candidate) => ({
+          url: candidate.url,
+          hostname: candidate.hostname,
+          foundBy: candidate.discoveries.map(
+            (discovery) => discovery.search.task.id,
+          ),
+        })),
+        null,
+        2,
+      )}`,
+    );
 
     return { status: 'completed' };
   }
