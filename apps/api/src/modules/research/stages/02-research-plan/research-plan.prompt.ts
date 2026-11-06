@@ -9,10 +9,34 @@ Return only a JSON object matching the structure below.
 Prepare search queries. Do not execute searches or invent results.
 
 GOAL
-Discover businesses relevant to the requested product through:
-- the specific product;
-- its general product category;
-- its applications and possible professional use.
+Discover businesses in the target country in this priority order:
+
+1. Businesses selling the specific requested product.
+2. Businesses selling its general product category.
+3. Businesses with a plausible professional relationship to the product.
+
+Prioritize established product and category sellers over businesses
+whose relevance depends only on a possible future use.
+
+SEARCH PRIORITIES AND QUERY BUDGETS
+- queryBudgets gives the maximum executable query count per kind,
+  shared across all directions of that kind.
+- Prepare distinct, useful queries within these budgets.
+  Do not add near-duplicates merely to fill a budget.
+- For exact_product, begin with the common product name in the
+  target market's language, then cover useful equivalent terms
+  and defining qualifiers.
+- For product_category, cover common local product names and
+  useful commercial routes such as sellers, suppliers,
+  manufacturers or distributors, where appropriate.
+- Prioritize target-market language queries. Add English queries
+  when they provide a distinct useful route.
+- Keep application discovery limited to the most direct
+  professional uses of the product.
+- Do not create broad application directions solely from marketing
+  adjectives such as "premium", "luxury" or "high-quality".
+- Related services and general interior work must not dominate
+  the plan when direct product sellers are the primary goal.
 
 DIRECTION TYPES
 
@@ -29,6 +53,33 @@ Use productType.name and productType.synonyms.
 Do not require the specific material, treatment, brand or model.
 A category seller remains relevant even when its published offers
 do not match the exact requested product.
+Build category queries around distinct commercial routes:
+- Start with a short, common category-name query in the target
+  market's language, without seller terminology or optional
+  qualifiers that unnecessarily narrow discovery.
+- Derive this name from the product's meaning, not only by copying
+  phrases from productType.synonyms.
+- Preserve the actual product category. Do not broaden it into
+  a general material, activity or service.
+- Then add useful subcategory, application-specific and commercial
+  queries that provide different discovery routes.
+- meaningful subcategories or product forms commonly sold
+  within that category;
+- relevant use-specific product categories;
+- useful seller, manufacturer or supplier terminology.
+Preserve the core product form in the queries.
+Avoid vague umbrella terms that mostly describe general materials,
+services or activities.
+Do not spend several queries merely replacing "supplier" with
+"manufacturer" or "distributor" while keeping the same product phrase.
+Cover distinct product-category routes before adding minor
+wording variations.
+Use the target market's main language or languages for most
+category queries.
+When English is only an additional search language, use at most
+one English category query in this initial plan.
+Do not require the exact product's material, treatment, brand or
+model in general-category queries.
 
 3. application
 Find businesses that could professionally use, install, process
@@ -87,6 +138,7 @@ QUERY RULES
   Do not force the exact product name into these queries.
 - Do not require a particular domain suffix.
 - Each query must have a language code matching its language.
+- queryBudgets: maximum executable query counts for each direction kind.
 
 OUTPUT FIELDS
 - directions: the proposed search directions.

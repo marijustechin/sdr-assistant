@@ -4,6 +4,7 @@ import { ProductProfile } from '../01-product-profile/product-profile.schema.js'
 import { ResearchPlan, researchPlanSchema } from './research-plan.schema.js';
 import { LLM_CONFIG } from '../../config/llm-config.js';
 import { RESEARCH_PLAN_PROMPT } from './research-plan.prompt.js';
+import { SEARCH_EXECUTION_CONFIG } from '../../config/search-execution.config.js';
 
 export async function createResearchPlan(
   profile: ProductProfile,
@@ -15,6 +16,7 @@ export async function createResearchPlan(
   const data = await llmChat(LLM_CONFIG, RESEARCH_PLAN_PROMPT, {
     profile,
     country,
+    queryBudgets: SEARCH_EXECUTION_CONFIG.maxQueriesByKind,
   });
 
   const planText = data.choices[0]?.message.content;

@@ -1,15 +1,22 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { writeFile } from 'node:fs/promises';
 
 import type { CreateResearchDto } from './dto/create-research.dto.js';
 
 import { PRODUCT_PROFILE_PROMPT } from './stages/01-product-profile/product-profile.prompt.js';
 import { LLM_CONFIG } from './config/llm-config.js';
+import { CRAWL_EXECUTION_CONFIG } from './config/crawl-execution.config.js';
 
-import { collectPageCandidates } from './stages/04-normalization/collect-page-candidates.js';
 import { createProductProfile } from './stages/01-product-profile/create-product-profile.js';
 import { createResearchPlan } from './stages/02-research-plan/create-research-plan.js';
 import { runSearches } from './stages/03-discovery/run-searches.js';
+import { collectPageCandidates } from './stages/04-normalization/collect-page-candidates.js';
 import { groupPagesBySite } from './stages/04-normalization/group-pages-by-site.js';
+import { buildCrawlQueue } from './stages/05-triage/build-crawl-queue.js';
+import { prepareCrawlExecution } from './stages/05-triage/prepare-crawl-execution.js';
+import { fetchPages } from './stages/06-fetch/fetch-pages.js';
+import { RESEARCH_PLAN_PROMPT } from './stages/02-research-plan/research-plan.prompt.js';
+import { SEARCH_EXECUTION_CONFIG } from './config/search-execution.config.js';
 
 @Injectable()
 export class ResearchService {
@@ -99,6 +106,119 @@ export class ResearchService {
         2,
       )}`,
     );
+
+    // laikinas rezultatu irašymas
+
+    const createdAt = new Date().toISOString();
+    const outputFile = `discovery-${createdAt.replaceAll(':', '-')}.json`;
+
+    await writeFile(
+      outputFile,
+      JSON.stringify(
+        {
+          createdAt,
+          input: dto,
+
+          prompts: {
+            productProfile: PRODUCT_PROFILE_PROMPT,
+            researchPlan: RESEARCH_PLAN_PROMPT,
+          },
+
+          config: {
+            llm: LLM_CONFIG,
+            search: SEARCH_EXECUTION_CONFIG,
+          },
+
+          profile,
+          plan,
+          searchRuns,
+          deferredSearches: deferred,
+          siteGroups,
+        },
+        null,
+        2,
+      ),
+      'utf8',
+    );
+
+    this.logger.log(
+      `Discovery saved: ${outputFile}, sites=${siteGroups.length}, pages=${candidates.length}`,
+    );
+
+    // stage 5 - crawl *******************************************************************************
+    // const crawlQueue = buildCrawlQueue(siteGroups);
+
+    // this.logger.log(
+    //   `Crawl queue: sites=${siteGroups.length}, pages=${crawlQueue.length}`,
+    // );
+
+    // this.logger.log(
+    //   `Crawl queue preview:\n${JSON.stringify(
+    //     crawlQueue.slice(0, 10).map((page, index) => ({
+    //       position: index + 1,
+    //       hostname: page.hostname,
+    //       url: page.url,
+    //     })),
+    //     null,
+    //     2,
+    //   )}`,
+    // );
+
+    // const crawlExecution = prepareCrawlExecution(
+    //   crawlQueue,
+    //   CRAWL_EXECUTION_CONFIG.maxPages,
+    // );
+
+    // this.logger.log(
+    //   `Crawl selection: selected=${crawlExecution.selected.length}, deferred=${crawlExecution.deferred.length}, total=${crawlQueue.length}`,
+    // );
+
+    // this.logger.log(
+    //   `Selected crawl pages:\n${JSON.stringify(
+    //     crawlExecution.selected.map((page) => ({
+    //       url: page.url,
+    //       directions: [
+    //         ...new Set(
+    //           page.discoveries.map(
+    //             (discovery) => discovery.search.task.direction,
+    //           ),
+    //         ),
+    //       ],
+    //     })),
+    //     null,
+    //     2,
+    //   )}`,
+    // );
+
+    // // stage 6 - fetch pages -----------------------------------------------------
+    // const fetchedPages = await fetchPages(crawlExecution.selected);
+
+    // await writeFile(
+    //   'crawl-results.json',
+    //   JSON.stringify(
+    //     {
+    //       input: dto,
+    //       profile,
+    //       plan,
+    //       fetchedPages,
+    //       deferredPages: crawlExecution.deferred,
+    //       deferredSearches: deferred,
+    //     },
+    //     null,
+    //     2,
+    //   ),
+    //   'utf8',
+    // );
+
+    // const succeeded = fetchedPages.filter(
+    //   (result) => result.status === 'succeeded',
+    // ).length;
+
+    // this.logger.log(
+    //   `Fetch completed: succeeded=${succeeded}, failed=${fetchedPages.length - succeeded}, deferred=${crawlExecution.deferred.length}`,
+    // );
+
+    // this.logger.log('Saved: crawl-results.json');
 
     return { status: 'completed' };
   }
