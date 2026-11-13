@@ -1,5 +1,10 @@
 import { Transform } from 'class-transformer'
-import { IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator'
+import {
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  MaxLength,
+} from 'class-validator'
 
 export class CreateResearchDto {
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))

@@ -1,12 +1,10 @@
-import { searchExa } from './lib/exa-search.js';
-import { SearchTask } from './stages/02-research-plan/prepare-search-execution.js';
-
 export type DeepSeekResponse = {
-  choices: {
+  choices: Array<{
     message: {
       content: string;
     };
-  }[];
+    finish_reason: string | null;
+  }>;
 };
 
 export type LLMConfig = {
@@ -16,23 +14,4 @@ export type LLMConfig = {
   thinking: {
     type: 'enabled' | 'disabled';
   };
-};
-
-export type SearchRun = Awaited<ReturnType<typeof searchExa>> & {
-  task: SearchTask;
-};
-
-export type PageCandidate = {
-  url: string;
-  hostname: string;
-
-  discoveries: {
-    search: Omit<SearchRun, 'results'>;
-    result: SearchRun['results'][number];
-  }[];
-};
-
-export type SiteGroup = {
-  hostname: string;
-  pages: PageCandidate[];
 };

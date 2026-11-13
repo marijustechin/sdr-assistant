@@ -1,5 +1,12 @@
 import { Transform } from 'class-transformer'
-import { IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator'
+import {
+  ArrayMaxSize,
+  IsArray,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  MaxLength,
+} from 'class-validator'
 
 export class UpdateProductDto {
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
@@ -14,4 +21,18 @@ export class UpdateProductDto {
   @IsString()
   @MaxLength(2000)
   description?: string
+
+  @Transform(({ value }) =>
+    Array.isArray(value)
+      ? value
+          .map((item) => (typeof item === 'string' ? item.trim() : item))
+          .filter((item) => item !== '')
+      : value,
+  )
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  @MaxLength(100, { each: true })
+  @ArrayMaxSize(50)
+  possibleSearchTerms?: string[]
 }

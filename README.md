@@ -107,12 +107,14 @@ curl -X POST http://localhost:4000/products \
 ```
 
 Validation (via `class-validator`): `name` is required, max 200 chars;
-`description` is optional, max 2000 chars. Unknown fields are rejected.
+`description` is optional, max 2000 chars; `possibleSearchTerms` is an optional
+array of up to 50 strings (100 chars each). Unknown fields are rejected. The
+forms accept comma-separated categories and send them as an array.
 
 The product detail page (`/products/:id`) has a **Start research** form. It posts
-the product name, description and selected country to `POST /research`, which
-asks DeepSeek (`deepseek-flash`) for a product profile, logs the result, and
-returns `{ "status": "completed" }`.
+the product name, description, possible search terms and selected country to
+`POST /research`, which asks DeepSeek (`deepseek-flash`) for a product profile,
+logs the result, and returns `{ "status": "completed" }`.
 
 ## Scripts
 

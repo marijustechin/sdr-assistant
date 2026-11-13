@@ -13,6 +13,7 @@ export class ProductsService {
       data: {
         name: dto.name,
         description: dto.description ?? '',
+        possibleSearchTerms: dto.possibleSearchTerms ?? [],
       },
     })
   }
@@ -45,6 +46,7 @@ export class ProductsService {
       data: {
         name: dto.name,
         description: dto.description,
+        possibleSearchTerms: dto.possibleSearchTerms,
       },
     })
   }

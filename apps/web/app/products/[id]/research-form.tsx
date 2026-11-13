@@ -2,6 +2,8 @@
 
 import { useActionState } from 'react'
 
+import { COUNTRIES } from '@/lib/countries'
+
 import { startResearch, type ResearchFormState } from './actions'
 
 const initialState: ResearchFormState = { status: 'idle' }
@@ -24,14 +26,16 @@ export function ResearchForm({ name, description }: ResearchFormProps) {
 
       <div className="field">
         <label htmlFor="country">Country</label>
-        <input
-          id="country"
-          name="country"
-          type="text"
-          maxLength={100}
-          required
-          placeholder="e.g. Lithuania"
-        />
+        <select id="country" name="country" required defaultValue="">
+          <option value="" disabled>
+            Select a country
+          </option>
+          {COUNTRIES.map((country) => (
+            <option key={country.code} value={country.code}>
+              {country.name} ({country.code})
+            </option>
+          ))}
+        </select>
       </div>
 
       <div className="actions">

@@ -5,7 +5,6 @@ const nonEmptyText = z.string().trim().min(1);
 export const productProfileSchema = z.object({
   canonicalName: nonEmptyText,
   definition: nonEmptyText,
-
   productType: z.object({
     name: nonEmptyText,
     synonyms: z
@@ -17,7 +16,6 @@ export const productProfileSchema = z.object({
       )
       .min(1),
   }),
-
   synonyms: z
     .array(
       z.object({
@@ -26,7 +24,6 @@ export const productProfileSchema = z.object({
       }),
     )
     .min(1),
-
   attributeChecklist: z
     .array(
       z.object({
@@ -36,9 +33,7 @@ export const productProfileSchema = z.object({
       }),
     )
     .min(1),
-
   uncertainties: z.array(nonEmptyText),
-
   scope: z.object({
     requiredCharacteristics: z
       .array(
@@ -53,7 +48,6 @@ export const productProfileSchema = z.object({
     potentialSubstitutes: z.array(nonEmptyText),
     excludedFromTarget: z.array(nonEmptyText),
   }),
-
   applications: z.array(
     z.object({
       description: nonEmptyText,
@@ -62,5 +56,3 @@ export const productProfileSchema = z.object({
     }),
   ),
 });
-
-export type ProductProfile = z.infer<typeof productProfileSchema>;

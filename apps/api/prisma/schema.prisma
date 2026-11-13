@@ -14,11 +14,12 @@ datasource db {
 }
 
 model Product {
-  id          String   @id @default(cuid())
-  name        String
-  description String   @default("")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                String   @id @default(cuid())
+  name              String
+  description       String   @default("")
+  possibleSearchTerms String[] @default([])
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   @@map("products")
 }

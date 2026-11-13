@@ -1,6 +1,7 @@
 'use server'
 
 import { apiUrl } from '@/lib/api'
+import { findCountry } from '@/lib/countries'
 
 export type ResearchFormState = {
   status: 'idle' | 'success' | 'error'
@@ -13,17 +14,21 @@ export async function startResearch(
 ): Promise<ResearchFormState> {
   const name = String(formData.get('name') ?? '').trim()
   const description = String(formData.get('description') ?? '').trim()
-  const country = String(formData.get('country') ?? '').trim()
+  const country = findCountry(String(formData.get('country') ?? '').trim())
 
   if (!country) {
-    return { status: 'error', message: 'Country is required.' }
+    return { status: 'error', message: 'Choose a country.' }
   }
 
   try {
     const response = await fetch(`${apiUrl}/research`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ name, description, country }),
+      body: JSON.stringify({
+        name,
+        description,
+        country: country.name,
+      }),
       cache: 'no-store',
     })
 
@@ -39,6 +44,6 @@ export async function startResearch(
 
   return {
     status: 'success',
-    message: `Research completed for ${country}.`,
+    message: `Research completed for ${country.name}.`,
   }
 }

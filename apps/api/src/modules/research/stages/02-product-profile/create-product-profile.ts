@@ -1,8 +1,8 @@
 import { Logger } from '@nestjs/common';
 import { LLM_CONFIG } from '../../config/llm-config.js';
 import { llmChat } from '../../lib/llm-chat.js';
-import { PRODUCT_PROFILE_PROMPT } from './product-profile.prompt.js';
 import { productProfileSchema } from './product-profile.schema.js';
+import { PRODUCT_PROFILE_PROMPT } from './product-profile.prompt.js';
 
 export async function createProductProfile(userContent: object) {
   const logger = new Logger('ProductProfile');
