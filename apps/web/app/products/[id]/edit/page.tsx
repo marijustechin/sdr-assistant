@@ -1,27 +1,27 @@
-import type { Metadata } from 'next'
-import Link from 'next/link'
-import { notFound } from 'next/navigation'
+import type { Metadata } from 'next';
+import Link from 'next/link';
+import { notFound } from 'next/navigation';
 
-import { fetchProduct } from '@/lib/products'
+import { fetchProduct } from '@/lib/products';
 
-import { EditProductForm } from './edit-product-form'
+import { EditProductForm } from './edit-product-form';
 
 export const metadata: Metadata = {
   title: 'Edit product | SDR Assistant',
-}
+};
 
-export const dynamic = 'force-dynamic'
+export const dynamic = 'force-dynamic';
 
 export default async function EditProductPage({
   params,
 }: {
-  params: Promise<{ id: string }>
+  params: Promise<{ id: string }>;
 }) {
-  const { id } = await params
-  const result = await fetchProduct(id)
+  const { id } = await params;
+  const result = await fetchProduct(id);
 
   if (!result.ok && result.status === 404) {
-    notFound()
+    notFound();
   }
 
   if (!result.ok) {
@@ -36,10 +36,10 @@ export default async function EditProductPage({
         </div>
         <pre>{result.error}</pre>
       </main>
-    )
+    );
   }
 
-  const product = result.product
+  const product = result.product;
 
   return (
     <main>
@@ -58,5 +58,5 @@ export default async function EditProductPage({
         />
       </section>
     </main>
-  )
+  );
 }

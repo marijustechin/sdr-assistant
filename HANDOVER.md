@@ -24,9 +24,13 @@
   `CompanyDiscoveryService`.
 - **02-company-discovery**: skeleton prompt and service exist; not yet validated
   or hardened.
-- **Web**: new `/researches` pages, `_pages/research`, `entities/research` and
+- **Web**: `/researches` pages, `_pages/research`, `entities/research` and
   `app/api/research/[jobId]` polling proxy. The old `products/[id]` research
-  form still exists; frontend audit needed.
+  form is still the only way to start a run. The detail page now renders status,
+  terminal states and the result; polling is bounded, backs off, stops on 4xx and
+  aborts on unmount. Audit, plan, harness and tooling landed on 2026-11-14 — see
+  `docs/audits/frontend-2026-11-14.md`, `docs/plans/frontend-action-plan-2026-11-14.md`,
+  `docs/system/`.
 
 ## Temporary state
 
@@ -57,9 +61,13 @@
 ```bash
 npm run dev                 # API + web
 npm run build               # API build + web build
+npm run verify:web          # web typecheck + lint + format:check (gate)
 npm run db:up               # PostgreSQL
 npm run db:migrate          # Prisma migrations
 ```
+
+In PowerShell inside the DSH sandbox use `npm.cmd` / `npx.cmd` (the `.ps1` shims fail on a
+named pipe). See `docs/system/harness.md` §4 for the full caveat list.
 
 Typechecks used during cleanup:
 
@@ -70,5 +78,6 @@ node node_modules/typescript/bin/tsc -p apps/web/tsconfig.json --noEmit
 
 ## Next
 
-See [TODO.md](TODO.md). The next work is project harness/docs and a
-read-only frontend audit before any refactor.
+See [TODO.md](TODO.md). Harness, frontend audit and the frontend action plan landed on
+2026-11-14. Next is the research flow P0 (checklist in `ops/current.md`), then the Lite FSD
+migration and the remaining phases of the plan.

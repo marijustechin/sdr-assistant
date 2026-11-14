@@ -1,17 +1,17 @@
-'use client'
+'use client';
 
-import Link from 'next/link'
-import { useActionState } from 'react'
+import Link from 'next/link';
+import { useActionState } from 'react';
 
-import { updateProduct, type UpdateProductFormState } from './actions'
+import { updateProduct, type UpdateProductFormState } from './actions';
 
-const initialState: UpdateProductFormState = {}
+const initialState: UpdateProductFormState = {};
 
 type EditProductFormProps = {
-  productId: string
-  name: string
-  description: string
-}
+  productId: string;
+  name: string;
+  description: string;
+};
 
 export function EditProductForm({
   productId,
@@ -21,7 +21,7 @@ export function EditProductForm({
   const [state, formAction, pending] = useActionState(
     updateProduct.bind(null, productId),
     initialState,
-  )
+  );
 
   return (
     <form action={formAction} className="form" noValidate>
@@ -79,5 +79,5 @@ export function EditProductForm({
         </Link>
       </div>
     </form>
-  )
+  );
 }

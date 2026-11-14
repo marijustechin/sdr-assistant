@@ -1,17 +1,17 @@
-'use client'
+'use client';
 
-import Link from 'next/link'
-import { useActionState } from 'react'
+import Link from 'next/link';
+import { useActionState } from 'react';
 
-import { createProduct, type ProductFormState } from '../actions'
+import { createProduct, type ProductFormState } from '../actions';
 
-const initialState: ProductFormState = {}
+const initialState: ProductFormState = {};
 
 export function ProductForm() {
   const [state, formAction, pending] = useActionState(
     createProduct,
     initialState,
-  )
+  );
 
   return (
     <form action={formAction} className="form" noValidate>
@@ -69,5 +69,5 @@ export function ProductForm() {
         </Link>
       </div>
     </form>
-  )
+  );
 }

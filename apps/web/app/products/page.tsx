@@ -1,55 +1,17 @@
-import type { Metadata } from 'next'
-import Link from 'next/link'
+import type { Metadata } from 'next';
+import Link from 'next/link';
 
-import { apiUrl } from '@/lib/api'
+import { fetchProducts } from '@/lib/products';
+import { formatDateTime } from '@/shared/lib/format';
 
 export const metadata: Metadata = {
   title: 'Products | SDR Assistant',
-}
+};
 
-export const dynamic = 'force-dynamic'
-
-type Product = {
-  id: string
-  name: string
-  description: string
-  createdAt: string
-  updatedAt: string
-}
-
-type ProductsResult =
-  | { ok: true; products: Product[] }
-  | { ok: false; error: string }
-
-async function fetchProducts(): Promise<ProductsResult> {
-  try {
-    const response = await fetch(`${apiUrl}/products`, {
-      cache: 'no-store',
-      signal: AbortSignal.timeout(5_000),
-    })
-
-    if (!response.ok) {
-      return { ok: false, error: `The API responded with HTTP ${response.status}.` }
-    }
-
-    return { ok: true, products: (await response.json()) as Product[] }
-  } catch (error) {
-    return {
-      ok: false,
-      error: error instanceof Error ? error.message : String(error),
-    }
-  }
-}
-
-function formatDate(value: string): string {
-  return new Intl.DateTimeFormat('en', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(new Date(value))
-}
+export const dynamic = 'force-dynamic';
 
 export default async function ProductsPage() {
-  const result = await fetchProducts()
+  const result = await fetchProducts();
 
   return (
     <main>
@@ -67,18 +29,19 @@ export default async function ProductsPage() {
         {!result.ok ? (
           <>
             <div className="status error">
-              <span className="dot" />
+              <span className="dot" aria-hidden="true" />
               Could not load products
             </div>
-            <pre>{result.error}</pre>
+            <pre>{result.message}</pre>
           </>
-        ) : result.products.length === 0 ? (
-          <p className="muted" style={{ margin: 0 }}>
-            No products yet. <Link href="/products/new">Create the first one →</Link>
+        ) : result.data.length === 0 ? (
+          <p className="muted">
+            No products yet.{' '}
+            <Link href="/products/new">Create the first one →</Link>
           </p>
         ) : (
           <ul className="product-list">
-            {result.products.map((product) => (
+            {result.data.map((product) => (
               <li key={product.id} className="product-item">
                 <div>
                   <h2>
@@ -91,7 +54,7 @@ export default async function ProductsPage() {
                   )}
                 </div>
                 <time className="muted" dateTime={product.createdAt}>
-                  {formatDate(product.createdAt)}
+                  {formatDateTime(product.createdAt)}
                 </time>
               </li>
             ))}
@@ -99,9 +62,9 @@ export default async function ProductsPage() {
         )}
       </section>
 
-      <p className="muted" style={{ marginTop: '1.5rem' }}>
+      <p className="muted page-footer">
         <Link href="/">← Home</Link>
       </p>
     </main>
-  )
+  );
 }

@@ -1,14 +1,15 @@
 'use server';
 
-import { apiUrl } from '@/lib/api';
-import { findCountry } from '@/lib/countries';
-import { startResearchResponseSchema } from '@/entities/research';
 import { redirect } from 'next/navigation';
 
+import { startResearchResponseSchema } from '@/entities/research';
+import { postJson } from '@/shared/api/http';
+import { apiUrl } from '@/shared/config/env';
+import { findCountry } from '@/lib/countries';
+
 export type ResearchFormState = {
-  status: 'idle' | 'success' | 'error';
+  status: 'idle' | 'error';
   message?: string;
-  jobId?: string;
 };
 
 export async function startResearch(
@@ -24,49 +25,24 @@ export async function startResearch(
     return { status: 'error', message: 'Product ID is missing.' };
   }
 
+  if (!name) {
+    return { status: 'error', message: 'Product name is missing.' };
+  }
+
   if (!country) {
     return { status: 'error', message: 'Choose a country.' };
   }
 
-  let jobId: string;
+  const result = await postJson(
+    `${apiUrl}/research`,
+    { name, description, productId, country: country.name },
+    startResearchResponseSchema,
+  );
 
-  try {
-    const response = await fetch(`${apiUrl}/research`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        name,
-        description,
-        productId,
-        country: country.name,
-      }),
-      cache: 'no-store',
-    });
-
-    if (!response.ok) {
-      return {
-        status: 'error',
-        message: `The API responded with HTTP ${response.status}.`,
-      };
-    }
-
-    const data: unknown = await response.json();
-    const parsed = startResearchResponseSchema.safeParse(data);
-
-    if (!parsed.success) {
-      return {
-        status: 'error',
-        message: 'The API returned an unexpected response.',
-      };
-    }
-
-    jobId = parsed.data.jobId;
-  } catch {
-    return {
-      status: 'error',
-      message: 'Could not reach the API. Is it running?',
-    };
+  if (!result.ok) {
+    return { status: 'error', message: result.message };
   }
 
-  redirect(`/researches/${encodeURIComponent(jobId)}`);
+  // `redirect` throws; success never returns a state object.
+  redirect(`/researches/${encodeURIComponent(result.data.jobId)}`);
 }

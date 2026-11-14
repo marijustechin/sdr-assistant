@@ -1,0 +1,9 @@
+# Safety net for accidental repo-root runs.
+# All formatting is scoped to apps/web — `apps/api` belongs to another workstream
+# and must never be reformatted from here.
+apps/api/
+node_modules/
+dist/
+.next/
+package-lock.json
+*.tsbuildinfo

@@ -1,47 +1,41 @@
-import type { Metadata } from 'next'
+import type { Metadata } from 'next';
+import { z } from 'zod';
 
-import { apiUrl } from '@/lib/api'
+import { formatDateTime } from '@/shared/lib/format';
+import { getJson } from '@/shared/api/http';
+import { apiUrl } from '@/shared/config/env';
 
 export const metadata: Metadata = {
   title: 'Backend health | SDR Assistant',
-}
+};
 
-export const dynamic = 'force-dynamic'
+export const dynamic = 'force-dynamic';
 
-type HealthBody = { status: string }
+const healthSchema = z.object({ status: z.string() });
+
+type HealthBody = z.infer<typeof healthSchema>;
 
 type HealthResult =
   | { ok: true; body: HealthBody; latencyMs: number }
-  | { ok: false; error: string }
+  | { ok: false; error: string };
 
 async function fetchHealth(): Promise<HealthResult> {
-  const startedAt = performance.now()
+  const startedAt = performance.now();
+  const result = await getJson(`${apiUrl}/health`, healthSchema);
 
-  try {
-    const response = await fetch(`${apiUrl}/health`, {
-      cache: 'no-store',
-      signal: AbortSignal.timeout(5_000),
-    })
-
-    if (!response.ok) {
-      return { ok: false, error: `Backend responded with HTTP ${response.status}` }
-    }
-
-    return {
-      ok: true,
-      body: (await response.json()) as HealthBody,
-      latencyMs: Math.round(performance.now() - startedAt),
-    }
-  } catch (error) {
-    return {
-      ok: false,
-      error: error instanceof Error ? error.message : String(error),
-    }
+  if (!result.ok) {
+    return { ok: false, error: result.message };
   }
+
+  return {
+    ok: true,
+    body: result.data,
+    latencyMs: Math.round(performance.now() - startedAt),
+  };
 }
 
 export default async function HealthPage() {
-  const health = await fetchHealth()
+  const health = await fetchHealth();
 
   return (
     <main>
@@ -55,7 +49,9 @@ export default async function HealthPage() {
           <>
             <div className="status ok">
               <span className="dot" />
-              {health.body.status === 'ok' ? 'API is healthy' : `Unexpected status: ${health.body.status}`}
+              {health.body.status === 'ok'
+                ? 'API is healthy'
+                : `Unexpected status: ${health.body.status}`}
             </div>
             <pre>{JSON.stringify(health.body, null, 2)}</pre>
           </>
@@ -73,7 +69,7 @@ export default async function HealthPage() {
           <dt>Endpoint</dt>
           <dd>{apiUrl}/health</dd>
           <dt>Checked</dt>
-          <dd>{new Date().toLocaleString()}</dd>
+          <dd>{formatDateTime(new Date())}</dd>
           {health.ok && (
             <>
               <dt>Latency</dt>
@@ -83,9 +79,9 @@ export default async function HealthPage() {
         </dl>
       </section>
 
-      <p className="muted" style={{ marginTop: '1.5rem' }}>
+      <p className="muted page-footer">
         <a href="/health">Refresh</a>
       </p>
     </main>
-  )
+  );
 }

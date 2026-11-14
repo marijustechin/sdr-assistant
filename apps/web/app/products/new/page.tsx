@@ -1,11 +1,11 @@
-import type { Metadata } from 'next'
-import Link from 'next/link'
+import type { Metadata } from 'next';
+import Link from 'next/link';
 
-import { ProductForm } from './product-form'
+import { ProductForm } from './product-form';
 
 export const metadata: Metadata = {
   title: 'New product | SDR Assistant',
-}
+};
 
 export default function NewProductPage() {
   return (
@@ -20,5 +20,5 @@ export default function NewProductPage() {
         <ProductForm />
       </section>
     </main>
-  )
+  );
 }

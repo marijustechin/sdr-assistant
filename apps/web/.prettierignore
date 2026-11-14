@@ -1,0 +1,6 @@
+# Generated or vendored content — never format.
+.next/
+coverage/
+node_modules/
+next-env.d.ts
+*.tsbuildinfo

@@ -1,28 +1,24 @@
-import { apiUrl } from '@/lib/api';
-import { type ResearchResponse } from '../model/types';
+import 'server-only';
 
-export async function fetchResearch(jobId: string): Promise<ResearchResponse> {
-  const response = await fetch(`${apiUrl}/research/${jobId}`, {
-    method: 'GET',
-    cache: 'no-store',
-  });
+import { getJson } from '@/shared/api/http';
+import type { ApiResult } from '@/shared/api/http';
+import { apiUrl } from '@/shared/config/env';
 
-  if (!response.ok) {
-    throw new Error(`Could not load researches: HTTP ${response.status}`);
-  }
+import {
+  researchListSchema,
+  researchResponseSchema,
+  type ResearchResponse,
+} from '../model/schema';
 
-  return response.json();
+export function fetchResearch(
+  jobId: string,
+): Promise<ApiResult<ResearchResponse>> {
+  return getJson(
+    `${apiUrl}/research/${encodeURIComponent(jobId)}`,
+    researchResponseSchema,
+  );
 }
 
-export async function fetchResearches(): Promise<ResearchResponse[]> {
-  const response = await fetch(`${apiUrl}/research`, {
-    method: 'GET',
-    cache: 'no-store',
-  });
-
-  if (!response.ok) {
-    throw new Error(`Could not load researches: HTTP ${response.status}`);
-  }
-
-  return response.json();
+export function fetchResearches(): Promise<ApiResult<ResearchResponse[]>> {
+  return getJson(`${apiUrl}/research`, researchListSchema);
 }

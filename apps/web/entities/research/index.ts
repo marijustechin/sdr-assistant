@@ -1,9 +1,3 @@
-export { fetchResearches, fetchResearch } from './api/research.server';
-export { fetchResearchStatus } from './api/research.client';
-export {
-  researchStatusSchema,
-  startResearchResponseSchema,
-  type ResearchResponse,
-  type ResearchStatus,
-  type StartResearchResponse,
-} from './model/types';
+export { fetchResearch, fetchResearches } from './api/research.server';
+export { startResearchResponseSchema } from './model/schema';
+export type { ResearchResponse, ResearchStatus } from './model/schema';

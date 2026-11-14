@@ -1,29 +1,67 @@
-import Link from 'next/link'
+import Link from 'next/link';
 
-const links = [
-  { href: '/products', label: 'Products', description: 'Browse the catalog' },
-  { href: '/products/new', label: 'New product', description: 'Add a product' },
-  { href: '/health', label: 'Backend health', description: 'Check the API status' },
-]
+const QUICK_LINKS = [
+  {
+    href: '/products',
+    title: 'Products',
+    description: 'Browse the catalogue and start a research run for a market.',
+    cta: 'Open products',
+  },
+  {
+    href: '/researches',
+    title: 'Researches',
+    description: 'Follow running jobs and read completed results.',
+    cta: 'Open researches',
+  },
+  {
+    href: '/health',
+    title: 'API health',
+    description: 'Check the NestJS API, its status and response time.',
+    cta: 'Check health',
+  },
+] as const;
 
 export default function HomePage() {
   return (
     <main>
-      <h1>SDR Assistant</h1>
-      <p className="muted">Web app is running.</p>
+      <div className="page-header">
+        <div>
+          <h1>Research workspace</h1>
+          <p className="muted">One product, one market, one run at a time.</p>
+        </div>
+        <Link href="/products" className="button">
+          Start a research
+        </Link>
+      </div>
 
-      <ul className="link-list" style={{ marginTop: '2rem' }}>
-        {links.map((link) => (
-          <li key={link.href} className="link-item">
-            <div>
-              <h2>
-                <Link href={link.href}>{link.label}</Link>
-              </h2>
-              <p className="muted">{link.description}</p>
-            </div>
-          </li>
+      <div className="grid gap-4 sm:grid-cols-3">
+        {QUICK_LINKS.map((link) => (
+          <section key={link.href} className="card mt-0">
+            <h2>{link.title}</h2>
+            <p className="muted">{link.description}</p>
+            <p>
+              <Link href={link.href}>{link.cta} →</Link>
+            </p>
+          </section>
         ))}
-      </ul>
+      </div>
+
+      <section className="card">
+        <h2>How a run works</h2>
+        <ol>
+          <li>
+            Pick a product and a country — that is the whole scope of one run.
+          </li>
+          <li>
+            Stage 01 identifies the product and collects candidate pages; stage
+            02 discovers companies.
+          </li>
+          <li>
+            The run continues in the background. Follow it on the research page;
+            the result appears there when the run finishes.
+          </li>
+        </ol>
+      </section>
     </main>
-  )
+  );
 }

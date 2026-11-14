@@ -1,13 +1,54 @@
 # Agent notes
 
+## Start here
+
+- [docs/system/harness.md](docs/system/harness.md) — commands, sandbox caveats, verification
+  ladder, stop rules.
+- [docs/system/frontend.md](docs/system/frontend.md) — frontend layers, contracts, styling.
+- [ops/current.md](ops/current.md) — the single active task.
+- [TODO.md](TODO.md) — one item in "Now"; everything else in
+  [ops/backlog.md](ops/backlog.md).
+- Frontend plan: [docs/plans/frontend-action-plan-2026-11-14.md](docs/plans/frontend-action-plan-2026-11-14.md).
+
+Commands (see harness for the full table):
+
+```bash
+npm run dev            # API 4000 + web 3000
+npm run verify:web     # typecheck + lint + format:check  (gate for every web change)
+npm run build          # API tsc + next build (needs a normal terminal, see harness §4)
+```
+
 ## Protected area
 
 - **Do not modify code under `apps/api/src/modules/research` without an
   explicit, specific request from the user.** Documentation, README, TODO and
   non-research code may be changed as part of project maintenance.
+- That module is being edited by the user: keep formatters, linters and codemods scoped to
+  `apps/web`. Never run a repo-wide `prettier --write` or `eslint --fix`.
 - Raw identification fixtures live in
   `apps/api/src/modules/research/stages/01-product-identification/temp/` and are
   gitignored. Do not commit them.
+
+## Frontend
+
+- Scope: everything under `apps/web`. The API is consumed over HTTP only.
+- Next.js 16.4 — this is not the Next.js of older training data. Read the relevant guide in
+  `node_modules/next/dist/docs/` before using a Next API. `next lint` no longer exists;
+  linting is `eslint .`.
+- Architecture and rules: [docs/system/frontend.md](docs/system/frontend.md).
+  Decision: [ADR-002](docs/decisions/ADR-002-frontend-lite-fsd.md).
+- Hard rules:
+  - `app/**` is routing only — metadata, `params`, one view component.
+  - No `fetch(` outside `shared/api/**` and `app/api/**` route handlers.
+  - Every wire payload is parsed with a zod schema; types are `z.infer`. No `any`, no `as`
+    on `response.json()`.
+  - Failures are values (`Result`), not exceptions thrown into the render tree.
+  - Every async surface has loading, empty, error and terminal states.
+  - `next-env.d.ts` is generated and git-ignored — never edit or commit it.
+- Tooling is workspace-local: `eslint`, `eslint-config-next`, `prettier` in
+  `apps/web/package.json`; configs in `apps/web/`. `npm run verify:web` must pass.
+- `research.result` is an open JSON value while stage 02 is in development. Render it
+  defensively; do not type it.
 
 ## Current research flow
 
@@ -17,6 +58,8 @@
   company discovery result.
 - While 02 is being tested, the live 01 call is commented out in
   `ResearchService`; see [HANDOVER.md](HANDOVER.md) and [TODO.md](TODO.md).
+- Runs are asynchronous: `POST /research` returns `202 {jobId, status}`, the client polls
+  `GET /research/:jobId`, and the web detail page renders the terminal state.
 
 ## Research runs: one product, one market
 

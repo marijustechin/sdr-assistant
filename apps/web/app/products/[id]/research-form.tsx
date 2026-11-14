@@ -1,30 +1,34 @@
-'use client'
+'use client';
 
-import { useActionState } from 'react'
+import { useActionState } from 'react';
 
-import { COUNTRIES } from '@/lib/countries'
+import { COUNTRIES } from '@/lib/countries';
 
-import { startResearch, type ResearchFormState } from './actions'
+import { startResearch, type ResearchFormState } from './actions';
 
-const initialState: ResearchFormState = { status: 'idle' }
+const initialState: ResearchFormState = { status: 'idle' };
 
 type ResearchFormProps = {
-  readonly name: string
-  readonly description: string
-  readonly productId: string
-}
+  readonly name: string;
+  readonly description: string;
+  readonly productId: string;
+};
 
-export function ResearchForm({ name, description, productId }: ResearchFormProps) {
+export function ResearchForm({
+  name,
+  description,
+  productId,
+}: ResearchFormProps) {
   const [state, formAction, pending] = useActionState(
     startResearch,
     initialState,
-  )
+  );
 
   return (
     <form action={formAction} className="form">
       <input type="hidden" name="name" value={name} />
       <input type="hidden" name="description" value={description} />
-     <input type="hidden" name="productId" value={productId} />
+      <input type="hidden" name="productId" value={productId} />
 
       <div className="field">
         <label htmlFor="country">Country</label>
@@ -45,13 +49,6 @@ export function ResearchForm({ name, description, productId }: ResearchFormProps
           {pending ? 'Starting…' : 'Start research'}
         </button>
 
-
-        {state.status === 'success' && (
-          <output className="form-success">
-            {state.message + ' Job ID: ' + state.jobId}
-          </output>
-        )}
-
         {state.status === 'error' && (
           <p className="form-error" role="alert">
             {state.message}
@@ -59,5 +56,5 @@ export function ResearchForm({ name, description, productId }: ResearchFormProps
         )}
       </div>
     </form>
-  )
+  );
 }

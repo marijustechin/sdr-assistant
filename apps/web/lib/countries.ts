@@ -6,8 +6,8 @@ export const COUNTRIES = [
   { code: 'ES', name: 'Spain' },
   { code: 'DE', name: 'Germany' },
   { code: 'PL', name: 'Poland' },
-] as const
+] as const;
 
 export function findCountry(code: string) {
-  return COUNTRIES.find((country) => country.code === code)
+  return COUNTRIES.find((country) => country.code === code);
 }
