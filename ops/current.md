@@ -5,11 +5,10 @@
 §2 Phase 2 → state matrix, §2a revised order
 **Scope:** `apps/web` only. `apps/api/src/modules/research` is frozen (user's workstream).
 **Status:** implementation, tests, formatting, navigation, toaster and theme are done and
-pushed (`5916863` on `main`); `npm run verify:web` is green with 55 tests. The production build
-completes (11 routes) and the pages were smoke-tested over HTTP against both the live API and a
-dead API — list, detail, health, 404 and the error cards all render, and the proxy answers
-`502 {"error":"Could not reach the research API."}`. What remains is the **interactive** matrix
-in a real browser: polling transitions, toasts, theme switch, keyboard.
+pushed (`5916863` on `main`); `npm run verify:web` is green with 55 unit tests and
+`npm run e2e` passes 10 Playwright scenarios in ~17 s. The production build completes (11
+routes) and the pages were smoke-tested over HTTP against both the live API and a dead API.
+What remains is a **human pass**: visual design, 360 px, keyboard-only, and one real (paid) run.
 
 ## What changed since the previous state
 
@@ -52,35 +51,27 @@ External review findings, all addressed except the ones that need a real environ
 - Back-to-top button in `widgets/app-shell`, shown only on pages taller than the viewport.
 - Tests: `widgets/app-shell/model/navigation.test.ts` (8), `theme.test.ts` (3),
   `theme.store.test.ts` (11, jsdom, including the pre-paint script), `scroll.test.ts` (4),
-  `shared/lib/format.test.ts` (7) and `shared/lib/toast.test.ts` (7) pin the behavioural rules.
+  `shared/lib/format.test.ts` (7), `shared/lib/toast.test.ts` (7), `shared/api/http.test.ts`
+  (8) and `use-research-polling.test.ts` (7) — 55 unit tests.
+- Playwright: `npm run e2e` (10 scenarios, ~17 s) with `e2e/mock-api.mjs` and a Next dev server
+  on :3100 (`NEXT_DIST_DIR=.next-e2e`). Covers shell/nav, lists, product tabs, a run to
+  completion, a failed run, a lost job + toast, 404, theme persistence, copy + toast and
+  back-to-top. The real API is never called.
 
-## Remaining — interactive browser pass
+## Remaining — human pass
 
-- [ ] `npm run dev` with the API and PostgreSQL up.
-- [ ] `npm run build -w @sdr-assistant/web` — 8 routes + the route handler.
-- [ ] State matrix (plan §2 Phase 2, exit criteria):
-  - [ ] queued → running → completed: result appears, polling and spinner stop.
-  - [ ] failed: `error` text visible, retry works, no requests afterwards.
-  - [ ] job 404 → app not-found page (no retry loop).
-  - [ ] API down → inline error, bounded retries, manual retry.
-  - [ ] back/forward between two job URLs → correct data, no stale flash.
-  - [ ] product page: history list, "Product page" link, 360 px, keyboard-only.
-  - [ ] navigation: sidebar active states on every route, Products and product section tabs,
-        mobile top bar below 1024 px, skip link, focus ring.
-  - [ ] visual: light and dark system themes, long product names, empty states.
-  - [ ] toaster: top-right placement; copy a completed result (green "Result copied"), stop
-        the API mid-run and wait for the polling cap (rose "Research updates stopped" +
-        Retry), hover a toast (timer pauses), Escape closes, four-toast cap.
-  - [ ] back-to-top: hidden on a short page, appears after scrolling a long one, smooth scroll,
-        no button when the content fits.
-- [ ] Fix whatever the matrix uncovers; record the result here and in `TODO.md`.
+- [ ] `npm run verify:web` and `npm run e2e` green on your machine (both were here).
+- [ ] `npm run build -w @sdr-assistant/web` — 11 routes.
+- [ ] Visual review: spacing, contrast, light/dark, long names, empty states.
+- [ ] 360 px and keyboard-only: focus order, skip link, toast Escape.
+- [ ] One real run against the paid API when the research module is ready.
+- [ ] Back/forward between two job URLs — not covered by E2E yet; verify by hand or add a test.
 
-## Next after the matrix
+## Next after the human pass
 
-- [ ] Rendering test for `ResearchDetails`/`ResearchResultView` and an integration test for the
-      detail page with a mocked API (plan Phase 5 remainder).
-- [ ] Styling: `@layer components`, `shared/ui` primitives (plan Phase 3).
+- [ ] CI: `verify:web`, `e2e` and `build` on push.
 - [ ] FSD moves and boundary lint (plan Phase 4).
+- [ ] Country data decision with the backend owner.
 
 ## Decisions / notes
 
@@ -88,5 +79,9 @@ External review findings, all addressed except the ones that need a real environ
   locally, joins `/products`, and tolerates an open `result` shape (plan §8).
 - Product list and detail still fetch in route files until Phase 4; acceptable transitionally
   and recorded in `docs/system/frontend.md`.
-- Tests must use the threads pool (`vitest.config.ts`); the default forks pool cannot start in
-  a sandboxed environment.
+- Unit tests must use the threads pool (`vitest.config.ts`); the default forks pool cannot start
+  in a sandboxed environment.
+- E2E uses a mock API and its own dev server (`NEXT_DIST_DIR=.next-e2e`), so it can run next to
+  a normal `next dev`; never point it at the paid API.
+- Playwright must reach the app on `localhost`, not `127.0.0.1` — Next dev blocks its dev
+  resources by host name and hydration then fails silently.

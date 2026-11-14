@@ -8,28 +8,25 @@ Updated: 2026-11-14
 
 ## Now
 
-- [ ] **Interactive browser verification of the research flow and the new UI** — the build and
-      the server-rendered pages are verified (see below); what is left needs a real browser and
-      human eyes. Checklist in [ops/current.md](ops/current.md).
+- [ ] **Human pass over the UI** — everything behavioural is now automated; what is left needs
+      eyes and a real browser. Checklist in [ops/current.md](ops/current.md).
   - [x] `npm run build -w @sdr-assistant/web` — 11 routes, static + dynamic.
   - [x] Server-rendered pages over HTTP against the live API: list, product detail, research
         detail (Result + Copy + Completed), health, 404 page.
   - [x] Error states against a dead API: product list, research list, health, research detail;
         proxy answers `502 {"error":"Could not reach the research API."}`.
-  - [ ] queued → running → completed: result appears, polling and spinner stop.
-  - [ ] failed: `error` visible, retry works, no requests afterwards.
-  - [ ] Navigation: sidebar active states, section tabs, mobile (<1024 px) top bar.
-  - [ ] Toasts: copy result, polling stop with Retry, hover pause, Escape, four-toast cap.
-  - [ ] 360 px, keyboard-only, light and dark system themes.
-  - [ ] Record the outcome here and in `ops/current.md`; fix what it uncovers.
+  - [x] Playwright (`npm run e2e`, 10 scenarios): queued → running → completed, failed run,
+        lost job + toast, navigation and active states, theme switch + reload, copy + toast,
+        back-to-top, 404.
+  - [ ] Visual review: spacing, contrast, light/dark, long names and empty states.
+  - [ ] 360 px and keyboard-only pass (focus order, skip link, toast Escape).
+  - [ ] One real run against the paid API, when the research module is ready.
 
 ## Next
 
-- [ ] **Page-level tests** (plan Phase 5 remainder) — rendering test for
-      `ResearchDetails`/`ResearchResultView`, integration test for the detail page with a
-      mocked API. No new dependencies needed.
 - [ ] **Phase 4 — FSD-lite structure** — `features/{create-product,edit-product,start-research}`,
       `entities/product`, thin `app/**`, import-boundary lint.
+- [ ] **CI** — run `verify:web`, `e2e` and `build` on push now that both pass locally.
 - [ ] **Country data** — replace the hardcoded 7 countries in `lib/countries.ts`; needs a
       decision with the backend owner (code vs English name).
 - [ ] **ADR-001 research pipeline** — draft only; the research workstream owns the content.
@@ -56,6 +53,10 @@ Updated: 2026-11-14
 
 ## Done
 
+- [x] **Playwright E2E automation** (2026-11-14) — `npm run e2e` starts `e2e/mock-api.mjs` and
+      an isolated Next dev server (`NEXT_DIST_DIR=.next-e2e`, `API_URL` → mock) and runs
+      10 scenarios in ~17 s. The paid API is never touched. `npm run verify:web` stays the fast
+      gate (55 unit tests); the harness explains when to run E2E.
 - [x] **Committed and pushed** (2026-11-14) — `5916863` "Add frontend foundation: data layer,
       research flow and app shell" on `main`. 87 files; `apps/api/src/modules/research` left
       untouched in the working tree (user's own edits).

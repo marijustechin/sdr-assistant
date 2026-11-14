@@ -271,6 +271,7 @@ No default exports for components; pages keep Next's default export signature.
 | Formatting | `npm run format:check` | active |
 | Server/client leaks | `server-only` + a separate `client.ts` entry per slice | active |
 | HTTP failures and polling | `npm run test` (vitest: `shared/api/http`, `use-research-polling`) | active |
+| Rendered behaviour | `npm run e2e` (Playwright, mock API) | active (10 scenarios) |
 | Layer boundaries | `eslint-plugin-boundaries` | Phase 4.4 |
 | No `fetch` outside `shared/api` | grep in DoD + review | active (single call site) |
 | Page-level rendering | integration test / manual matrix | Phase 5 + manual |

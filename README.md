@@ -151,14 +151,16 @@ fields are rejected.
 
 ```bash
 npm run verify:web     # typegen + tsc + eslint --max-warnings=0 + vitest + prettier --check
+npm run e2e:web        # Playwright: 10 rendered scenarios against a mock API
 npm run build          # API tsc + next build
 ```
 
-`verify:web` is the gate for every frontend change. Tests cover the HTTP failure model, the
-polling hook, navigation, theme, scroll, toasts and date formatting; page-level assertions are
-the next step of the frontend plan. `npm run build` needs an unrestricted environment — in the
-restricted DSH sandbox it compiles and then fails with `spawn EPERM` (see
-[harness §4](docs/system/harness.md)); with full access it completes and lists the routes.
+`verify:web` is the gate for every frontend change; run `npm run e2e:web` for anything that
+changes rendered behaviour. The E2E suite starts its own mock API and its own dev server, so it
+never calls the paid research APIs and can run next to a normal `npm run dev`. `npm run build`
+needs an unrestricted environment — in the restricted DSH sandbox it compiles and then fails
+with `spawn EPERM` (see [harness §4](docs/system/harness.md)); with full access it completes
+and lists the routes.
 
 ## Scripts
 

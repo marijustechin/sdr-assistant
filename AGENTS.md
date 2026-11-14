@@ -15,6 +15,7 @@ Commands (see harness for the full table):
 ```bash
 npm run dev            # API 4000 + web 3000
 npm run verify:web     # typecheck + lint + test + format:check  (gate for every web change)
+npm run e2e:web        # Playwright: 10 rendered scenarios, mock API (never the paid one)
 npm run build          # API tsc + next build (needs full access, harness §4)
 ```
 

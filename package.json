@@ -16,6 +16,7 @@
     "dev:web": "npm run dev --workspace @sdr-assistant/web",
     "build": "npm run build --workspace @sdr-assistant/api && npm run build --workspace @sdr-assistant/web",
     "verify:web": "npm run typecheck --workspace @sdr-assistant/web && npm run lint --workspace @sdr-assistant/web && npm run test --workspace @sdr-assistant/web && npm run format:check --workspace @sdr-assistant/web",
+    "e2e:web": "npm run e2e --workspace @sdr-assistant/web",
     "db:up": "docker compose up -d",
     "db:down": "docker compose down",
     "db:generate": "npm run db:generate --workspace @sdr-assistant/api",

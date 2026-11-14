@@ -231,10 +231,11 @@ Purpose: make the layering enforceable rather than aspirational (audit §4).
 ### Phase 5 — Tests and CI (1–1.5 d)
 
 **Status: partially done (2026-11-14).** Runner installed (`vitest`, jsdom,
-testing-library, threads pool for sandboxed environments); 15 tests cover `shared/api/http`
-and `use-research-polling`; `test` is part of `verify:web`. Still open: a rendering test for
-`ResearchDetails` + `ResearchResultView`, an integration test for the detail page with a
-mocked API, and CI (0.9).
+testing-library, threads pool for sandboxed environments); 55 tests cover the HTTP layer, the
+polling hook, navigation, theme, scroll, toasts and formatting; `test` is part of `verify:web`.
+Playwright is also in place: `npm run e2e` starts a mock API plus an isolated Next dev server
+and asserts 10 rendered scenarios (shell, lists, product tabs, run to completion, failed run,
+lost job, 404, theme persistence, copy + toast, back-to-top) in ~17 s. Still open: CI (0.9).
 
 | # | Step | Files | Size | Acceptance |
 | --- | --- | --- | --- | --- |

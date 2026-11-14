@@ -49,19 +49,25 @@ The web app reads `API_URL` (default `http://localhost:4000`) — see
 | --- | --- | --- |
 | `npm run dev` | API (4000) + web (3000) together | not in this environment |
 | `npm run dev:api` / `npm run dev:web` | one side only | not in this environment |
-| `npm run verify:web` | `typecheck && lint && format:check` for `apps/web` | yes, exit 0 |
+| `npm run verify:web` | `typecheck && lint && test && format:check` for `apps/web` | yes, exit 0 |
 | `npm run typecheck -w @sdr-assistant/web` | `next typegen && tsc --noEmit` | yes |
 | `npm run lint -w @sdr-assistant/web` | `eslint . --max-warnings=0` | yes |
-| `npm run test -w @sdr-assistant/web` | `vitest run` (HTTP layer + polling hook) | yes |
+| `npm run test -w @sdr-assistant/web` | `vitest run` (HTTP, polling, theme, navigation, scroll, toast, formatting) | yes, 55 |
+| `npm run e2e -w @sdr-assistant/web` | Playwright against a mock API: 10 rendered-UI scenarios | yes, 10/10 in ~17 s |
 | `npm run format -w @sdr-assistant/web` | `prettier --write .` (web only) | yes |
-| `npm run build` | API `tsc` + `next build` | compile passes; see §4 |
+| `npm run build` | API `tsc` + `next build` | 11 routes; see §4.3 |
 | `npm run db:up` / `db:down` | PostgreSQL container | no |
 | `npm run db:migrate` | Prisma migrate dev | no |
 | `npm run db:generate` | Prisma client | no |
 | `npm run db:check` | build + DB connectivity check | no |
 
 `verify:web` is the gate for every frontend change. It deliberately does **not** run a
-production build — that needs a normal terminal (§4).
+production build or the E2E suite. Run `npm run e2e -w @sdr-assistant/web` for anything that
+changes rendered behaviour (layout, navigation, polling UI, toasts, theme).
+
+`verify:web` is the gate for every frontend change. It deliberately does **not** run a
+production build or the E2E suite. Run `npm run e2e -w @sdr-assistant/web` for anything that
+changes rendered behaviour (layout, navigation, polling UI, toasts, theme).
 
 ---
 
@@ -94,6 +100,16 @@ These are verified facts in this environment, not guesses. They cost hours if re
 8. **Vitest must use the threads pool in the sandbox.** The default `forks` pool spawns child
    processes and fails with `spawn EPERM`; `apps/web/vitest.config.ts` pins
    `pool: 'threads'`, which works everywhere.
+9. **Use `localhost`, not `127.0.0.1`, for a Next dev server under test.** Next 16 blocks its
+   dev resources for a host name other than the one it advertises and hydration then fails
+   **silently** (the page renders but no handler works, no console error). The Playwright
+   config and `baseURL` therefore use `localhost`.
+10. **E2E runs get their own build directory.** `next.config.ts` reads `NEXT_DIST_DIR`
+    (`.next-e2e` under Playwright) so the suite can run while a normal `next dev` is open on
+    :3000. Never hard-kill a dev server mid-compile: a damaged `.next-e2e` makes every test
+    time out — delete the directory and rerun.
+11. **Never point E2E at the real API.** `POST /research` starts paid Exa/DeepSeek calls; the
+    suite always targets `e2e/mock-api.mjs`.
 
 ---
 
@@ -101,15 +117,18 @@ These are verified facts in this environment, not guesses. They cost hours if re
 
 Run in this order; stop at the first failure.
 
-1. `npm run verify:web` — typecheck, lint, formatting.
-2. `npm run build --workspace @sdr-assistant/web` — must list the routes (currently 11:
+1. `npm run verify:web` — typecheck, lint, unit tests, formatting.
+2. `npm run e2e -w @sdr-assistant/web` — Playwright: shell, lists, product tabs, a full run
+   (queued → running → completed), a failed run, a poller that loses its job, 404, theme
+   switch + persistence, copy + toast, back-to-top. Add a scenario when you change behaviour.
+3. `npm run build --workspace @sdr-assistant/web` — must list the routes (currently 11:
    the pages, `/_not-found`, `/icon.svg` and the `/api/research/[jobId]` handler). Needs
    `danger-full-access` or a normal terminal, see §4.3.
-3. `npm run dev` **outside the sandbox** — walk the manual state matrix for the touched flow
-   (states, navigation, keyboard) and record it in the commit message or `ops/done/`.
-4. `TODO.md` updated: one active item in "Now"; finished work moved to "Done" with evidence.
+4. `npm run dev` — walk anything the automated suites cannot judge: visual design, keyboard
+   only, 360 px, and a real run against the paid API when the change touches it.
+5. `TODO.md` updated: one active item in "Now"; finished work moved to "Done" with evidence.
 
-A task is done when all four hold. "It compiles" is not done.
+A task is done when all five hold. "It compiles" is not done.
 
 Frontend-specific bar (see [frontend.md](frontend.md)): no `any`, no `as` casts on wire
 data, no `fetch(` outside `shared/api` and the route handler, no unreachable UI branches.
@@ -179,7 +198,8 @@ and tolerate the current behaviour.
 
 ## 10. Known gaps
 
-- Tests cover the HTTP failure model, the polling hook, navigation, theme, scroll, toasts and
-  formatting; rendered pages are only smoke-tested over HTTP, not asserted in a test.
+- Unit tests cover the HTTP failure model, polling, navigation, theme, scroll, toasts and
+  formatting; Playwright covers 10 rendered scenarios. Visual design, keyboard-only and
+  360 px still need a human pass.
 - No CI workflow yet (plan 0.9 is optional and unverified here).
 - No lint rule for layer boundaries yet (Phase 4).
