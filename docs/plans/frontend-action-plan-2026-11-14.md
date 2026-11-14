@@ -152,9 +152,10 @@ handler; `npm run verify:web` green; the app behaves exactly as before.
 15 tests cover the HTTP failure model and every polling transition, and `npm run verify:web`
 exits 0. Two review findings were folded in: the result is now rendered from the polled
 object (no `router.refresh()`, no second request) and retry is decided per failure reason.
-**The manual state matrix below is still unverified** — it needs the API, PostgreSQL and a
-browser, none of which can run in the DSH sandbox (`next dev` → `spawn EPERM`, see
-`docs/system/harness.md` §4). Tracked in `TODO.md` "Now".
+**The manual state matrix below is still unverified** — the build and the server-rendered
+pages were verified on 2026-11-14 (11 routes; list, detail, health and 404 against the live API;
+error cards and a `502 {"error":…}` proxy response against a dead API), but the interactive
+parts need a real browser. Tracked in `TODO.md` "Now".
 
 Purpose: make the feature actually work for a user (§2.1, §2.2, §2.3, §2.7, §2.8).
 

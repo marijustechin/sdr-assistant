@@ -8,16 +8,18 @@ Updated: 2026-11-14
 
 ## Now
 
-- [ ] **Runtime verification of the research flow and the new UI** — implementation and tests
-      are done (`npm run verify:web` green, 23 tests); the state matrix, the visual pass and
-      the keyboard pass need the API, PostgreSQL and a browser outside the DSH sandbox.
-      Checklist in [ops/current.md](ops/current.md).
-  - [ ] `npm run dev` + `npm run build -w @sdr-assistant/web` (8 routes + the route handler).
+- [ ] **Interactive browser verification of the research flow and the new UI** — the build and
+      the server-rendered pages are verified (see below); what is left needs a real browser and
+      human eyes. Checklist in [ops/current.md](ops/current.md).
+  - [x] `npm run build -w @sdr-assistant/web` — 11 routes, static + dynamic.
+  - [x] Server-rendered pages over HTTP against the live API: list, product detail, research
+        detail (Result + Copy + Completed), health, 404 page.
+  - [x] Error states against a dead API: product list, research list, health, research detail;
+        proxy answers `502 {"error":"Could not reach the research API."}`.
   - [ ] queued → running → completed: result appears, polling and spinner stop.
   - [ ] failed: `error` visible, retry works, no requests afterwards.
-  - [ ] job 404 → app not-found page; API down → inline error, bounded retries.
-  - [ ] back/forward between two jobs; product page history + "Product page" link.
   - [ ] Navigation: sidebar active states, section tabs, mobile (<1024 px) top bar.
+  - [ ] Toasts: copy result, polling stop with Retry, hover pause, Escape, four-toast cap.
   - [ ] 360 px, keyboard-only, light and dark system themes.
   - [ ] Record the outcome here and in `ops/current.md`; fix what it uncovers.
 
@@ -54,6 +56,9 @@ Updated: 2026-11-14
 
 ## Done
 
+- [x] **Committed and pushed** (2026-11-14) — `5916863` "Add frontend foundation: data layer,
+      research flow and app shell" on `main`. 87 files; `apps/api/src/modules/research` left
+      untouched in the working tree (user's own edits).
 - [x] **Navigation shell and visual restyle** (2026-11-14). Evidence: `npm run verify:web`
       green (55 tests); the compiled stylesheet keeps `@layer components` before
       `@layer utilities`; zero inline styles in `apps/web`.

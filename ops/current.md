@@ -4,11 +4,12 @@
 **Source:** [docs/plans/frontend-action-plan-2026-11-14.md](../docs/plans/frontend-action-plan-2026-11-14.md)
 §2 Phase 2 → state matrix, §2a revised order
 **Scope:** `apps/web` only. `apps/api/src/modules/research` is frozen (user's workstream).
-**Status:** implementation, tests and the external-review fixes are done
-(`npm run verify:web` green, 55 tests). The navigation shell, visual restyle, theme switch,
-toaster, back-to-top button and Lithuanian date/time formatting landed on 2026-11-14.
-**Runtime verification is blocked** — the
-API, PostgreSQL and `next dev` cannot run in the DSH sandbox (`next dev` → `spawn EPERM`).
+**Status:** implementation, tests, formatting, navigation, toaster and theme are done and
+pushed (`5916863` on `main`); `npm run verify:web` is green with 55 tests. The production build
+completes (11 routes) and the pages were smoke-tested over HTTP against both the live API and a
+dead API — list, detail, health, 404 and the error cards all render, and the proxy answers
+`502 {"error":"Could not reach the research API."}`. What remains is the **interactive** matrix
+in a real browser: polling transitions, toasts, theme switch, keyboard.
 
 ## What changed since the previous state
 
@@ -53,7 +54,7 @@ External review findings, all addressed except the ones that need a real environ
   `theme.store.test.ts` (11, jsdom, including the pre-paint script), `scroll.test.ts` (4),
   `shared/lib/format.test.ts` (7) and `shared/lib/toast.test.ts` (7) pin the behavioural rules.
 
-## Remaining — verify in a normal terminal
+## Remaining — interactive browser pass
 
 - [ ] `npm run dev` with the API and PostgreSQL up.
 - [ ] `npm run build -w @sdr-assistant/web` — 8 routes + the route handler.

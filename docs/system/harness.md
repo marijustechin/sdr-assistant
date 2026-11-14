@@ -75,10 +75,10 @@ These are verified facts in this environment, not guesses. They cost hours if re
 2. **Never pipe a native executable's output into a PowerShell cmdlet.**
    `git status | Select-Object …`, `node … | Select-Object …` and similar fail with the same
    named-pipe error. Redirect to a file or let the tool capture the output.
-3. **`next build` cannot finish inside the sandbox.** It compiles
-   (`✓ Compiled successfully`) and then dies at `Running TypeScript …` with `spawn EPERM`
-   (exit 1). Run `npm.cmd run build` in a normal terminal. `next typegen` and `tsc` *do* work
-   here, which is why `typecheck` starts with `next typegen`.
+3. **`next build` needs the unrestricted sandbox.** Under `workspace-write` it compiles and
+   then dies at `Running TypeScript …` with `spawn EPERM` (exit 1) because it cannot fork its
+   workers. With `danger-full-access` the whole build completes — verified 2026-11-14: 11
+   routes, static and dynamic. `next typegen` and `tsc` work under both.
 4. **npm's default cache is outside the workspace** (`%LOCALAPPDATA%\npm-cache`) and is
    blocked by the file sandbox. Installing from inside the sandbox needs a workspace-safe
    cache, e.g. `npm.cmd install … --cache "$env:TEMP\npm-cache-sdr"`.
@@ -87,9 +87,10 @@ These are verified facts in this environment, not guesses. They cost hours if re
 6. **`tsc` without `.next/types` still exits 0** because `skipLibCheck` hides the missing
    import, but route validation is then silently skipped. Always let `typecheck` run
    `next typegen` first.
-7. **`next dev` also fails in the sandbox.** `next-dev` forks its server process and dies
-   with `spawn EPERM`, so the app cannot be opened in a browser from here either. Runtime
-   verification (state matrix, hydration, keyboard) must happen in a normal terminal.
+7. **`next dev` / `next start` also need the unrestricted sandbox.** Under `workspace-write`
+   they fork a server process and die with `spawn EPERM`; with `danger-full-access` both work
+   (verified 2026-11-14). If `next dev` reports *"Another next dev server is already running"*,
+   that is the developer's own server on :3000 — use another port, never kill it.
 8. **Vitest must use the threads pool in the sandbox.** The default `forks` pool spawns child
    processes and fails with `spawn EPERM`; `apps/web/vitest.config.ts` pins
    `pool: 'threads'`, which works everywhere.
@@ -101,8 +102,9 @@ These are verified facts in this environment, not guesses. They cost hours if re
 Run in this order; stop at the first failure.
 
 1. `npm run verify:web` — typecheck, lint, formatting.
-2. `npm run build -w @sdr-assistant/web` **outside the sandbox** — must list 8 routes plus
-   the `/api/research/[jobId]` route handler.
+2. `npm run build --workspace @sdr-assistant/web` — must list the routes (currently 11:
+   the pages, `/_not-found`, `/icon.svg` and the `/api/research/[jobId]` handler). Needs
+   `danger-full-access` or a normal terminal, see §4.3.
 3. `npm run dev` **outside the sandbox** — walk the manual state matrix for the touched flow
    (states, navigation, keyboard) and record it in the commit message or `ops/done/`.
 4. `TODO.md` updated: one active item in "Now"; finished work moved to "Done" with evidence.
@@ -177,8 +179,7 @@ and tolerate the current behaviour.
 
 ## 10. Known gaps
 
-- Tests cover the HTTP failure model and the polling hook, not the rendered pages; a rendering
-  and an integration test are still missing (plan Phase 5).
+- Tests cover the HTTP failure model, the polling hook, navigation, theme, scroll, toasts and
+  formatting; rendered pages are only smoke-tested over HTTP, not asserted in a test.
 - No CI workflow yet (plan 0.9 is optional and unverified here).
-- No production build inside this sandbox (§4.3).
 - No lint rule for layer boundaries yet (Phase 4).

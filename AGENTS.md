@@ -14,8 +14,8 @@ Commands (see harness for the full table):
 
 ```bash
 npm run dev            # API 4000 + web 3000
-npm run verify:web     # typecheck + lint + format:check  (gate for every web change)
-npm run build          # API tsc + next build (needs a normal terminal, see harness §4)
+npm run verify:web     # typecheck + lint + test + format:check  (gate for every web change)
+npm run build          # API tsc + next build (needs full access, harness §4)
 ```
 
 ## Protected area

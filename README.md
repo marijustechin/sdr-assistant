@@ -154,11 +154,11 @@ npm run verify:web     # typegen + tsc + eslint --max-warnings=0 + vitest + pret
 npm run build          # API tsc + next build
 ```
 
-`verify:web` is the gate for every frontend change. The production build must run in a normal
-terminal: inside the DSH agent sandbox `next build` compiles and then fails at its TypeScript
-worker with `spawn EPERM` (see [harness §4](docs/system/harness.md)). Tests currently cover
-the HTTP failure model and every polling transition; page-level tests are the next step of the
-frontend plan.
+`verify:web` is the gate for every frontend change. Tests cover the HTTP failure model, the
+polling hook, navigation, theme, scroll, toasts and date formatting; page-level assertions are
+the next step of the frontend plan. `npm run build` needs an unrestricted environment — in the
+restricted DSH sandbox it compiles and then fails with `spawn EPERM` (see
+[harness §4](docs/system/harness.md)); with full access it completes and lists the routes.
 
 ## Scripts
 
