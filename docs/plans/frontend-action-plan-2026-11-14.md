@@ -349,7 +349,7 @@ Phase 4 → boundary lint green; Phase 5 → CI required.
 | `cacheComponents: true` (Next 16 PPR) | Requires Suspense boundaries and removes `dynamic`/`revalidate` segment config; every page is a live dashboard. Revisit after Phase 3, as a separate ADR. |
 | TanStack Query / SWR | One client-side query today. The hand-rolled hook is ~120 lines and testable. Revisit at ≥3 client query surfaces. |
 | `shadcn/ui` | Adds Radix + CVA conventions. Seven primitives are cheaper by hand. Migrate later from `shared/ui` if the count grows. |
-| `packages/contracts` | Requires the API DTOs to import it — out of scope (user's area). Until then, web-local zod schemas + a payload fixture test. |
+| `packages/contracts` | Agreed 2026-11-14 to do **after** stage 02's `result` stabilises: the API must import it, and a frozen `result` schema would churn on every backend change. Details in `ops/backlog.md`. |
 | Moving layers under `src/` | Pure churn: alias, tsconfig, every import. FSD does not require it. |
 | i18n / multi-language UI | One product = one market/language; UI stays English until there is a second UI language. |
 | Full FSD (`processes`, `widgets` now) | No third page shares a composite yet; empty layers rot. |

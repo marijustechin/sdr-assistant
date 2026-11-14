@@ -28,9 +28,14 @@ Not scheduled. Ordered roughly by value. The plan is in
 
 - [ ] **`cacheComponents: true` (Next 16 PPR)** — would replace `force-dynamic` and require
       Suspense boundaries around uncached data. Revisit after Phase 3, as its own ADR.
-- [ ] **Shared API contract** (`packages/contracts` or OpenAPI + codegen) — needs the API
-      DTOs to import it, which is out of the frontend scope today. Revisit with the backend
-      owner; until then the web keeps zod schemas + a payload fixture test.
+- [ ] **Shared API contract** (`packages/contracts`, zod) — agreed 2026-11-14 to do **after
+      stage 02's `result` shape stabilises**. Shape: a buildable workspace package (dist +
+      `.d.ts`, ESM `exports`) holding `researchStatusSchema`, `researchResponseSchema` (`result`
+      stays `z.unknown()`), `startResearchResponseSchema` and `productSchema`. The API either
+      keeps `class-validator` plus a parity test, or derives DTOs from zod; build order becomes
+      contracts → api → web. `rootDir: src` in `apps/api/tsconfig.json` means the package must
+      be built, not imported as source. Until then the web keeps its own schemas; a
+      fixture-based contract test is the cheap interim signal.
 - [ ] **TanStack Query / SWR** — only if the number of client-side query surfaces grows past
       ~3; the hand-rolled polling hook is enough for one.
 - [ ] **`shadcn/ui`** — revisit when `shared/ui` exceeds ~10 primitives.
