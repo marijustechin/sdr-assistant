@@ -8,3 +8,12 @@ export const LLM_CONFIG: LLMConfig = {
     type: 'disabled',
   },
 };
+
+export const LLM_CONFIG_FLASH: LLMConfig = {
+  model: 'deepseek-flash',
+  max_tokens: 6000,
+  temperature: 0,
+  thinking: {
+    type: 'disabled',
+  },
+};

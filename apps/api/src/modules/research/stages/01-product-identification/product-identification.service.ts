@@ -12,6 +12,11 @@ import {
   type IdentifiedProduct,
   identifiedProductSchema,
 } from './product-identification.schema.js';
+import { PageForAssessment } from '../../types.js';
+import {
+  IdentificationFixture,
+  writeIdentificationFixture,
+} from '../../lib/research-fixture.lib.js';
 
 type TermCandidates = {
   productNames: string[];
@@ -38,28 +43,12 @@ type TermSearchRun = {
   error?: string;
 };
 
-type PageForAssessment = {
-  url: string;
-  canonicalUrl: string;
-  domain: string;
-  title: string | null;
-  foundBy: Array<{
-    term: string;
-    kind: 'product' | 'category';
-    provider: 'exa' | 'deepseek';
-  }>;
-  foundCount: number;
-  highlights: string[];
-  snippets: string[];
-  summary: string | null;
-  content: string | null;
-};
-
 @Injectable()
 export class ProductIdentificationService {
-  private readonly logger = new Logger('ProductIdentification');
-
-  async identify(dto: CreateResearchDto): Promise<IdentifiedProduct> {
+  async identify(
+    dto: CreateResearchDto,
+    onStage?: (stage: string) => Promise<void>,
+  ): Promise<IdentifiedProduct> {
     const countryCode = countries.getAlpha2Code(dto.country, 'en') ?? 'xx';
     const targetCountry = dto.country;
 
@@ -79,7 +68,7 @@ export class ProductIdentificationService {
       throw new Error(`Target language is not configured for ${targetCountry}`);
     }
 
-    this.logger.log('Generating term candidates...');
+    await onStage?.('Generating term candidates...');
     const termCandidates = await this.generateTermCandidates(
       targetLanguage,
       targetCountry,
@@ -87,18 +76,18 @@ export class ProductIdentificationService {
       dto.description,
     );
 
-    this.logger.log('Searching term candidates...');
+    await onStage?.('Searching term candidates...');
     const searchedTermCandidates = await this.searchTermCandidates(
       termCandidates,
       targetCountry,
     );
 
-    this.logger.log('Preparing pages for assessment...');
+    await onStage?.('Preparing pages for assessment...');
     const preparedCandidates = this.preparePagesForAssessment(
       searchedTermCandidates,
     );
 
-    this.logger.log('Identifying the product...');
+    await onStage?.('Identifying the product...');
     const identifiedProduct = await this.identifyProduct(
       preparedCandidates,
       targetLanguage,
@@ -107,7 +96,18 @@ export class ProductIdentificationService {
       dto.description,
     );
 
-    this.logger.log(JSON.stringify(identifiedProduct));
+    // laikinai irasome rezultatus i faila
+    // const data: IdentificationFixture = {
+    //   input: {
+    //     name: dto.name,
+    //     description: dto.description,
+    //     country: dto.country,
+    //   },
+    //   targetLanguage,
+    //   product: identifiedProduct,
+    //   pages: preparedCandidates,
+    // };
+    // await writeIdentificationFixture('rubai-pl', data);
 
     return identifiedProduct;
   }

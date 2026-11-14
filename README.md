@@ -9,7 +9,7 @@ Monorepo with a **NestJS (Fastify)** API and a **Next.js** web app, backed by
 | -------- | ------------------------------------------------------------- |
 | API      | NestJS 11 on Fastify, ESM (`"type": "module"`, NodeNext)       |
 | Database | PostgreSQL 17 (Docker Compose) + Prisma ORM 7 (`@prisma/adapter-pg`) |
-| Web      | Next.js 16 (App Router, Turbopack)                            |
+| Web      | Next.js 16 (App Router, Turbopack) + Tailwind CSS 4            |
 | Runtime  | Node.js >= 22 (tested on Node 24)                             |
 
 ## Layout

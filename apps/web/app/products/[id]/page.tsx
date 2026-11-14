@@ -14,9 +14,9 @@ export const dynamic = 'force-dynamic'
 
 export default async function ProductPage({
   params,
-}: {
+}: Readonly<{
   params: Promise<{ id: string }>
-}) {
+}>) {
   const { id } = await params
   const result = await fetchProduct(id)
 
@@ -31,8 +31,7 @@ export default async function ProductPage({
           <Link href="/products">← Products</Link>
         </p>
         <div className="status error">
-          <span className="dot" />
-          Could not load product
+          <span className="dot" />Could not load product
         </div>
         <pre>{result.error}</pre>
       </main>
@@ -69,7 +68,7 @@ export default async function ProductPage({
       <section className="card">
         <h2>Start research</h2>
         <p className="muted">Choose a country for the research.</p>
-        <ResearchForm name={product.name} description={product.description} />
+        <ResearchForm name={product.name} description={product.description} productId={id} />
       </section>
     </main>
   )

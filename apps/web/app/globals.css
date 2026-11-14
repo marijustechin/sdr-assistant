@@ -1,3 +1,17 @@
+@import 'tailwindcss';
+
+/* Tailwind utilities mapped onto the app palette, so `bg-surface`,
+   `text-muted`, `border-border`, ... share the values defined in :root. */
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-border: var(--border);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-ok: var(--ok);
+  --color-error: var(--error);
+}
+
 :root {
   --background: #0b1020;
   --surface: #141b30;

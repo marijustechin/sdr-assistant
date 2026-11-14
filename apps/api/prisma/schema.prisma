@@ -13,13 +13,38 @@ datasource db {
   provider = "postgresql"
 }
 
+enum ResearchStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+  INTERRUPTED
+}
+
 model Product {
-  id                String   @id @default(cuid())
-  name              String
-  description       String   @default("")
-  possibleSearchTerms String[] @default([])
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id                  String     @id @default(cuid())
+  name                String
+  description         String     @default("")
+  possibleSearchTerms String[]   @default([])
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+  research            Research[]
 
   @@map("products")
+}
+
+model Research {
+  id              String         @id @default(cuid())
+  productId       String
+  product         Product        @relation(fields: [productId], references: [id])
+  country         String
+  status          ResearchStatus @default(QUEUED)
+  stage           String?
+  result          Json?
+  error           String?
+  lastHeartbeatAt DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@map("researches")
 }

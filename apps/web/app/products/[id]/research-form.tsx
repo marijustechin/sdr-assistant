@@ -9,11 +9,12 @@ import { startResearch, type ResearchFormState } from './actions'
 const initialState: ResearchFormState = { status: 'idle' }
 
 type ResearchFormProps = {
-  name: string
-  description: string
+  readonly name: string
+  readonly description: string
+  readonly productId: string
 }
 
-export function ResearchForm({ name, description }: ResearchFormProps) {
+export function ResearchForm({ name, description, productId }: ResearchFormProps) {
   const [state, formAction, pending] = useActionState(
     startResearch,
     initialState,
@@ -23,6 +24,7 @@ export function ResearchForm({ name, description }: ResearchFormProps) {
     <form action={formAction} className="form">
       <input type="hidden" name="name" value={name} />
       <input type="hidden" name="description" value={description} />
+     <input type="hidden" name="productId" value={productId} />
 
       <div className="field">
         <label htmlFor="country">Country</label>
@@ -43,11 +45,13 @@ export function ResearchForm({ name, description }: ResearchFormProps) {
           {pending ? 'Starting…' : 'Start research'}
         </button>
 
+
         {state.status === 'success' && (
-          <p className="form-success" role="status">
-            {state.message}
-          </p>
+          <output className="form-success">
+            {state.message + ' Job ID: ' + state.jobId}
+          </output>
         )}
+
         {state.status === 'error' && (
           <p className="form-error" role="alert">
             {state.message}
