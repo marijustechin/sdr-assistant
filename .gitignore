@@ -28,6 +28,7 @@ npm-debug.log*
 
 # Research run artifacts
 apps/api/.runs/
+apps/api/src/modules/research/temp/
 apps/api/src/modules/research/stages/01-product-identification/temp/
 apps/api/discovery-*.json
 apps/api/crawl-results.json

@@ -26,9 +26,8 @@ npm run build          # API tsc + next build (needs full access, harness §4)
   non-research code may be changed as part of project maintenance.
 - That module is being edited by the user: keep formatters, linters and codemods scoped to
   `apps/web`. Never run a repo-wide `prettier --write` or `eslint --fix`.
-- Raw identification fixtures live in
-  `apps/api/src/modules/research/stages/01-product-identification/temp/` and are
-  gitignored. Do not commit them.
+- Raw identification fixtures and run dumps live in
+  `apps/api/src/modules/research/temp/` and are gitignored. Do not commit them.
 
 ## Frontend
 
@@ -54,13 +53,18 @@ npm run build          # API tsc + next build (needs full access, harness §4)
 ## Current research flow
 
 - `01-product-identification` returns `productName`, `categoryName` and
-  `generalCategoryName` for one product + one market.
-- `02-company-discovery` consumes an identification fixture and produces the
-  company discovery result.
-- While 02 is being tested, the live 01 call is commented out in
-  `ResearchService`; see [HANDOVER.md](HANDOVER.md) and [TODO.md](TODO.md).
+  `generalCategoryName` for one product + one market. Its live search/identify path is
+  temporarily replaced by a fixture replay; see [ops/current.md](ops/current.md).
+- `02-page-collection` searches the identified names, merges those pages with the ones 01
+  found, fetches missing text and triages every page (one LLM call per page, six at a time)
+  into `good`/`none`.
+- `03-company-discovery` builds one profile per good domain: homepage scrape, up to two
+  evidence pages, contact-page hunt, then an `a`/`b`/`none`/`unclear` verdict plus contacts
+  and prices. `a` means the offered material and product form match the product name;
+  qualifiers such as treatment, grade or dimension are optional.
 - Runs are asynchronous: `POST /research` returns `202 {jobId, status}`, the client polls
-  `GET /research/:jobId`, and the web detail page renders the terminal state.
+  `GET /research/:jobId`, and the web detail page renders the terminal state. When discovery
+  is enabled the run stores `result: { companies }`.
 
 ## Research runs: one product, one market
 

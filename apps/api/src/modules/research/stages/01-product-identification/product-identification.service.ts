@@ -3,8 +3,8 @@ import countries from 'i18n-iso-countries';
 
 import { LLM_CONFIG } from '../../config/llm-config.js';
 import { CreateResearchDto } from '../../dto/create-research.dto.js';
-import { dsSearch } from '../../lib/ds-search.js';
-import { searchExa } from '../../lib/exa-search.js';
+import { preparePagesForAssessment } from '../../pipeline/page-preparation.js';
+import { searchTermCandidates } from '../../pipeline/term-search.js';
 import { llmChat } from '../../lib/llm-chat.js';
 import { stripCodeFence } from '../../lib/strip-code.fense.js';
 import { PAGE_ASSESSMENT_PROMPT } from './page-assessment.prompt.js';
@@ -12,43 +12,26 @@ import {
   type IdentifiedProduct,
   identifiedProductSchema,
 } from './product-identification.schema.js';
-import { PageForAssessment } from '../../types.js';
 import {
-  IdentificationFixture,
-  writeIdentificationFixture,
-} from '../../lib/research-fixture.lib.js';
-
-type TermCandidates = {
-  productNames: string[];
-  categoryNames: string[];
-  notes: string;
-};
-
-type TermSearchResult = {
-  url: string;
-  title: string | null;
-  highlights: string[];
-  snippet: string | null;
-  summary: string | null;
-  content: string | null;
-};
-
-type TermSearchRun = {
-  term: string;
-  kind: 'product' | 'category';
-  provider: 'exa' | 'deepseek';
-  country: string;
-  searchedAt: string;
-  results: TermSearchResult[];
-  error?: string;
-};
+  type PageForAssessment,
+  type ProductIdentificationResponse,
+  type TermCandidates,
+} from '../../types.js';
+import {
+  getRandom,
+  readJsonFile,
+  resolveFileName,
+  writeJsonFile,
+} from '../../lib/utils.js';
 
 @Injectable()
 export class ProductIdentificationService {
+  private readonly logger = new Logger('CompanyDiscovery');
+
   async identify(
     dto: CreateResearchDto,
     onStage?: (stage: string) => Promise<void>,
-  ): Promise<IdentifiedProduct> {
+  ): Promise<ProductIdentificationResponse> {
     const countryCode = countries.getAlpha2Code(dto.country, 'en') ?? 'xx';
     const targetCountry = dto.country;
 
@@ -68,48 +51,59 @@ export class ProductIdentificationService {
       throw new Error(`Target language is not configured for ${targetCountry}`);
     }
 
-    await onStage?.('Generating term candidates...');
-    const termCandidates = await this.generateTermCandidates(
-      targetLanguage,
-      targetCountry,
-      dto.name,
-      dto.description,
-    );
-
-    await onStage?.('Searching term candidates...');
-    const searchedTermCandidates = await this.searchTermCandidates(
-      termCandidates,
-      targetCountry,
-    );
-
-    await onStage?.('Preparing pages for assessment...');
-    const preparedCandidates = this.preparePagesForAssessment(
-      searchedTermCandidates,
-    );
-
-    await onStage?.('Identifying the product...');
-    const identifiedProduct = await this.identifyProduct(
-      preparedCandidates,
-      targetLanguage,
-      targetCountry,
-      dto.name,
-      dto.description,
-    );
-
-    // laikinai irasome rezultatus i faila
-    // const data: IdentificationFixture = {
-    //   input: {
-    //     name: dto.name,
-    //     description: dto.description,
-    //     country: dto.country,
-    //   },
+    // await onStage?.('1.1 Generating term candidates...');
+    // const termCandidates = await this.generateTermCandidates(
     //   targetLanguage,
-    //   product: identifiedProduct,
-    //   pages: preparedCandidates,
-    // };
-    // await writeIdentificationFixture('rubai-pl', data);
+    //   targetCountry,
+    //   dto.name,
+    //   dto.description,
+    // );
 
-    return identifiedProduct;
+    // await onStage?.('1.2 Searching term candidates...');
+    // const searchedTermCandidates = await searchTermCandidates(termCandidates, {
+    //   country: targetCountry,
+    //   resultsPerQuery: 5,
+    // });
+
+    // await onStage?.('1.3 Preparing pages for assessment...');
+    // const preparedCandidates = preparePagesForAssessment(
+    //   searchedTermCandidates,
+    // );
+
+    // await onStage?.('1.4 Identifying the product...');
+    // const identifiedProduct = await this.identifyProduct(
+    //   preparedCandidates,
+    //   targetLanguage,
+    //   targetCountry,
+    //   dto.name,
+    //   dto.description,
+    // );
+
+    // /* Laikinas: write data to files */
+    // const fileNameForIdentifiedProduct = resolveFileName(
+    //   '01.1-identified-product',
+    // );
+    // await writeJsonFile(fileNameForIdentifiedProduct, identifiedProduct);
+
+    // const fileNameForCandidatePages = resolveFileName(
+    //   '01.2-indentification-pages',
+    // );
+    // await writeJsonFile(fileNameForCandidatePages, preparedCandidates);
+    // ///////////Laikinas: pabaiga //////////////////////////
+    const fileNameForIdentifiedProduct = resolveFileName(
+      'identified-product-dailylentes',
+    );
+    const identifiedProduct: IdentifiedProduct = await readJsonFile(
+      fileNameForIdentifiedProduct,
+    );
+    const fileNameForCandidatePages = resolveFileName(
+      'identification-pages-dailylentes25',
+    );
+    const preparedCandidates: PageForAssessment[] = await readJsonFile(
+      fileNameForCandidatePages,
+    );
+    const random25Pages = getRandom(preparedCandidates, 25);
+    return { product: identifiedProduct, sourcePages: random25Pages };
   }
 
   /**
@@ -192,277 +186,6 @@ Rules:
     }
 
     return parsed;
-  }
-
-  /**
-   * ******************************************************************************
-   * @param termCandidates
-   * @param country
-   * @returns
-   */
-  private async searchTermCandidates(
-    termCandidates: TermCandidates,
-    country: string,
-  ): Promise<TermSearchRun[]> {
-    const seen = new Set<string>();
-
-    const terms = [
-      ...termCandidates.productNames.map((term) => ({
-        term: term.trim(),
-        kind: 'product' as const,
-      })),
-      ...termCandidates.categoryNames.map((term) => ({
-        term: term.trim(),
-        kind: 'category' as const,
-      })),
-    ].filter(({ term, kind }) => {
-      if (!term) {
-        return false;
-      }
-
-      const key = `${kind}:${term.toLowerCase()}`;
-
-      if (seen.has(key)) {
-        return false;
-      }
-
-      seen.add(key);
-      return true;
-    });
-
-    const providers = ['exa', 'deepseek'] as const;
-
-    const jobs = terms.flatMap(({ term, kind }) =>
-      providers.map((provider) => ({
-        term,
-        kind,
-        provider,
-      })),
-    );
-
-    const searchRuns: TermSearchRun[] = [];
-    const concurrency = 4;
-
-    for (let index = 0; index < jobs.length; index += concurrency) {
-      const batch = jobs.slice(index, index + concurrency);
-
-      // eslint-disable-next-line no-await-in-loop
-      const batchResults = await Promise.all(
-        batch.map(async (job): Promise<TermSearchRun> => {
-          const baseRun = {
-            ...job,
-            country,
-            searchedAt: new Date().toISOString(),
-          };
-
-          try {
-            let results: TermSearchResult[];
-
-            if (job.provider === 'exa') {
-              const response = await searchExa(job.term, 5, country);
-
-              results = response.results.map((result) => ({
-                url: result.url,
-                title: result.title,
-                highlights: result.highlights,
-                snippet: null,
-                summary: null,
-                content: null,
-              }));
-            } else {
-              const response = await dsSearch(job.term, 5);
-
-              results = response.results.map((result) => ({
-                url: result.url,
-                title: result.title,
-                highlights: [],
-                snippet: result.snippet,
-                summary: result.summary,
-                content: result.content || null,
-              }));
-            }
-
-            return {
-              ...baseRun,
-              results,
-            };
-          } catch (error) {
-            return {
-              ...baseRun,
-              results: [],
-              error: error instanceof Error ? error.message : String(error),
-            };
-          }
-        }),
-      );
-
-      searchRuns.push(...batchResults);
-    }
-
-    return searchRuns;
-  }
-
-  /**
-   * *******************************************************************************
-   * @param searchRuns
-   * @returns
-   */
-  private preparePagesForAssessment(
-    searchRuns: TermSearchRun[],
-  ): PageForAssessment[] {
-    const trackingParams = new Set([
-      'fbclid',
-      'gclid',
-      'yclid',
-      'mc_cid',
-      'mc_eid',
-    ]);
-
-    // This is a grouping key, not the site's canonical URL. Path case, language
-    // segments and all meaningful query parameters are preserved.
-    const canonicalizeUrl = (raw: string): string => {
-      try {
-        const parsed = new URL(raw);
-        parsed.hash = '';
-
-        const keptParams = [...parsed.searchParams.entries()]
-          .filter(([key]) => {
-            const normalizedKey = key.toLowerCase();
-
-            return (
-              !normalizedKey.startsWith('utm_') &&
-              !trackingParams.has(normalizedKey)
-            );
-          })
-          .sort(([leftKey, leftValue], [rightKey, rightValue]) => {
-            return (
-              leftKey.localeCompare(rightKey) ||
-              leftValue.localeCompare(rightValue)
-            );
-          });
-
-        parsed.search = new URLSearchParams(keptParams).toString();
-
-        return parsed.toString();
-      } catch {
-        return raw.trim();
-      }
-    };
-
-    const domainOf = (raw: string): string => {
-      try {
-        return new URL(raw).hostname;
-      } catch {
-        return '';
-      }
-    };
-
-    const pages = new Map<string, PageForAssessment>();
-
-    for (const run of searchRuns) {
-      for (const result of run.results) {
-        const canonicalUrl = canonicalizeUrl(result.url);
-        const existing = pages.get(canonicalUrl);
-
-        if (!existing) {
-          const page: PageForAssessment = {
-            url: result.url,
-            canonicalUrl,
-            domain: domainOf(result.url),
-            title: result.title?.trim() || null,
-            foundBy: [
-              {
-                term: run.term,
-                kind: run.kind,
-                provider: run.provider,
-              },
-            ],
-            foundCount: 1,
-            highlights: [],
-            snippets: [],
-            summary: result.summary ?? null,
-            content: result.content ?? null,
-          };
-
-          this.addUniqueTexts(page.highlights, result.highlights ?? []);
-
-          if (result.snippet) {
-            this.addUniqueTexts(page.snippets, [result.snippet]);
-          }
-
-          pages.set(canonicalUrl, page);
-          continue;
-        }
-
-        this.mergeAssessmentPage(existing, result, run);
-      }
-    }
-
-    return [...pages.values()];
-  }
-
-  /**
-   * *************************************************************************************
-   * @param existing
-   * @param result
-   * @param run
-   */
-  private mergeAssessmentPage(
-    existing: PageForAssessment,
-    result: TermSearchResult,
-    run: TermSearchRun,
-  ): void {
-    const alreadyFound = existing.foundBy.some(
-      (origin) =>
-        origin.term === run.term &&
-        origin.kind === run.kind &&
-        origin.provider === run.provider,
-    );
-
-    if (!alreadyFound) {
-      existing.foundBy.push({
-        term: run.term,
-        kind: run.kind,
-        provider: run.provider,
-      });
-    }
-
-    existing.foundCount = existing.foundBy.length;
-
-    this.addUniqueTexts(existing.highlights, result.highlights ?? []);
-
-    if (result.snippet) {
-      this.addUniqueTexts(existing.snippets, [result.snippet]);
-    }
-
-    if (
-      result.title &&
-      result.title.trim().length > (existing.title?.length ?? 0)
-    ) {
-      existing.title = result.title.trim();
-    }
-
-    if (
-      result.summary &&
-      result.summary.length > (existing.summary?.length ?? 0)
-    ) {
-      existing.summary = result.summary;
-    }
-
-    if (
-      result.content &&
-      result.content.length > (existing.content?.length ?? 0)
-    ) {
-      existing.content = result.content;
-    }
-  }
-
-  private addUniqueTexts(target: string[], values: string[]): void {
-    for (const value of values) {
-      if (value.trim() && !target.includes(value)) {
-        target.push(value);
-      }
-    }
   }
 
   /**

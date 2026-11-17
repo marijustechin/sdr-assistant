@@ -1,5 +1,5 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { basename, dirname, join } from 'node:path';
+import { basename, join } from 'node:path';
 
 import type { CreateResearchDto } from '../dto/create-research.dto.js';
 import type { IdentifiedProduct } from '../stages/01-product-identification/product-identification.schema.js';
@@ -141,13 +141,4 @@ export async function readIdentificationFixture(
     product,
     pages: parsed.pages as PageForAssessment[],
   };
-}
-
-export async function writeJsonFile(
-  filePath: string,
-  data: object,
-): Promise<void> {
-  await mkdir(dirname(filePath), { recursive: true });
-
-  await writeFile(filePath, JSON.stringify(data, null, 2), 'utf8');
 }

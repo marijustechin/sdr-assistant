@@ -137,13 +137,20 @@ data, no `fetch(` outside `shared/api` and the route handler, no unreachable UI 
 
 ## 6. Fixtures
 
-- Raw identification fixtures live in
-  `apps/api/src/modules/research/stages/01-product-identification/temp/` and are git-ignored.
-- `abachi-lt` is the current local fixture used by `ResearchService` while stage 02 is being
-  developed. It exists only on the machine that created it.
-- `readIdentificationFixture` / `writeIdentificationFixture`
-  (`apps/api/src/modules/research/lib/research-fixture.lib.ts`) are the only accessors.
-- **Never commit fixture content** and never add raw page dumps to the repo.
+- Run dumps and raw pages live in `apps/api/src/modules/research/temp/` and are git-ignored.
+  Never commit them.
+- Stable names, one file per step, overwritten by every run:
+  - `identified-product-<slug>.json` and `identification-pages-<slug>.json` — 01's inputs when the
+    live path is replayed from files;
+  - `02.1-merged-pages.json` — the merged page list 02 triages (also the input when 02's search
+    step is replayed);
+  - `02.2-tirage.json` — the per-page verdicts with reasons;
+  - `02.3-page-collection-response.json` — the `good` pages handed to 03;
+  - `04-companies-<timestamp>.json` — 03's company profiles.
+- Replay mode is not flagged anywhere in the API: if a stage reads a dump, the run still reports
+  `COMPLETED`. Check the service before trusting a run's coverage.
+- `01-product-identification` also has an older fixture path under
+  `stages/01-product-identification/temp/`; it stays git-ignored for the same reason.
 
 ---
 

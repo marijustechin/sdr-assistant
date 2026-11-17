@@ -1,6 +1,6 @@
 # TODO — SDR Assistant
 
-Updated: 2026-11-14
+Updated: 2026-11-17
 
 > Update this file after every completed task or audit. Keep one active item in
 > "Now"; move completed items to "Done" with a short evidence note. The detailed,
@@ -8,21 +8,20 @@ Updated: 2026-11-14
 
 ## Now
 
-- [ ] **Human pass over the UI** — everything behavioural is now automated; what is left needs
-      eyes and a real browser. Checklist in [ops/current.md](ops/current.md).
-  - [x] `npm run build -w @sdr-assistant/web` — 11 routes, static + dynamic.
-  - [x] Server-rendered pages over HTTP against the live API: list, product detail, research
-        detail (Result + Copy + Completed), health, 404 page.
-  - [x] Error states against a dead API: product list, research list, health, research detail;
-        proxy answers `502 {"error":"Could not reach the research API."}`.
-  - [x] Playwright (`npm run e2e`, 10 scenarios): queued → running → completed, failed run,
-        lost job + toast, navigation and active states, theme switch + reload, copy + toast,
-        back-to-top, 404.
-  - [ ] Visual review: spacing, contrast, light/dark, long names and empty states.
-  - [ ] 360 px and keyboard-only pass (focus order, skip link, toast Escape).
-  - [ ] One real run against the paid API, when the research module is ready.
+- [ ] **Research pipeline — next measurement round** — the flow now runs end to end, with stages 01
+      and the 02 search step fed from dumps. Next: re-enable the live 01 path and the 02
+      search/merge (credits permitting), then measure the v9 price filter and the contact gap.
+      Checklist and revert paths in [ops/current.md](ops/current.md).
 
 ## Next
+
+- [ ] **Human pass over the UI** (parked while the research workstream runs) — everything
+      behavioural is automated; what is left needs eyes and a real browser. `npm run build -w
+      @sdr-assistant/web` is green (11 routes); pages were smoke-tested against a live and a dead
+      API; `npm run e2e` passes 10 scenarios.
+  - [ ] Visual review: spacing, contrast, light/dark, long names and empty states.
+  - [ ] 360 px and keyboard-only pass (focus order, skip link, toast Escape).
+  - [ ] One real run against the paid API.
 
 - [ ] **Phase 4 — FSD-lite structure** — `features/{create-product,edit-product,start-research}`,
       `entities/product`, thin `app/**`, import-boundary lint.
@@ -30,18 +29,18 @@ Updated: 2026-11-14
 - [ ] **Country data** — replace the hardcoded 7 countries in `lib/countries.ts`; needs a
       decision with the backend owner (code vs English name).
 - [ ] **ADR-001 research pipeline** — draft only; the research workstream owns the content.
-- [ ] **02-company-discovery validation**
-  - [ ] Run against the `abachi-lt` fixture.
-  - [ ] Review company extraction, domain vs company identity, marketplace sellers,
-        deduplication, and evidence.
-  - [ ] Add one bounded extra search round only after the first pass is clean.
+- [ ] **Research follow-ups** (see [ops/current.md](ops/current.md))
+  - [ ] Re-enable the live 01 path and the 02 search + merge; they are commented out while runs are
+        fed from dumps.
+  - [ ] Measure the v9 price filter end to end (prices must sit near the product name).
+  - [ ] Contacts: 14 of 49 companies have no email; add the 02 page texts to `extractEmails`.
+  - [ ] Company type: white-label storefronts of foreign platforms still get `b`.
+  - [ ] `a` depends on which two evidence pages 03 picks; consider all product-matching pages.
 - [ ] **API-side follow-ups** (protected area — needs an explicit request; plan §8)
   - [ ] `GET /research` has no `orderBy`/`take` (frontend sorts locally meanwhile).
-  - [ ] `INTERRUPTED` and `lastHeartbeatAt` are never written; a crashed run stays `RUNNING`
-        (the web shows a stale hint from `updatedAt` meanwhile).
+  - [ ] `POST /research` read-then-create race needs a partial unique index on
+        `(productId, country)` for active runs (ADR-001 §7).
   - [ ] `GET /research` returns only `productId` (frontend joins against `/products`).
-  - [ ] Partial unique index on `(productId, country)` for active runs, to close the
-        read-then-create race in `POST /research` (ADR-001 §7).
 
 ## Protected area
 
@@ -53,6 +52,27 @@ Updated: 2026-11-14
 
 ## Done
 
+- [x] **Research pipeline, stages 02–03** (2026-11-17). Evidence: `tsc --noEmit` and the API build
+      exit 0; three full runs on the same 132-page input produced 52/49/49 companies with 4–5 `a`
+      and 80–91 emails each.
+  - [x] **03-company-discovery** rebuilt and wired: one profile per good domain, `a`/`b`/`none`/
+        `unclear` verdict, contacts, prices, `04-companies-<stamp>.json`, `result: {companies}`.
+        49 companies, 4 `a` with 91 prices, 0 errors in ~6 min.
+  - [x] **02-page-collection** replaces the old stage: search + merge + content fetch + triage, six
+        pages at a time; triage prompt **v17** (v15 plus one rule 1 sentence about third-party
+        platform listings) kept over the semantic v16, which lost real sellers. The code-side rule 2
+        re-check (`verifyTriage`) was removed: stage 02 collects, stage 03 decides.
+  - [x] **Run robustness**: `llmChat` has a 90 s timeout; every stage update writes
+        `lastHeartbeatAt`; runs with no progress for 5 minutes are marked `INTERRUPTED` at boot and
+        before each `start()`, so a dead run no longer blocks a re-run.
+  - [x] **Dead weight removed**: `foundBy`/`foundCount` on pages, `contentFetched` in the triage
+        report, and the always-false `overridden` flag.
+  - [x] **Fixture replay** for 01 and the 02 search step, with stable dump names (`02.1`, `02.2`,
+        `02.3`, `04-companies`); `temp/` is git-ignored.
+- [x] **Next.js security bump** (2026-11-17) — `next` 16.4.3 → **16.4.5** (the November 2026
+      patch: CVE-2026-119348, CVE-2026-119350, CVE-2026-119790). `npm run verify:web` is green
+      (55 tests); `next build` compiles and reaches the type-check step, which the DSH sandbox
+      blocks with `spawn EPERM`.
 - [x] **Playwright E2E automation** (2026-11-14) — `npm run e2e` starts `e2e/mock-api.mjs` and
       an isolated Next dev server (`NEXT_DIST_DIR=.next-e2e`, `API_URL` → mock) and runs
       10 scenarios in ~17 s. The paid API is never touched. `npm run verify:web` stays the fast

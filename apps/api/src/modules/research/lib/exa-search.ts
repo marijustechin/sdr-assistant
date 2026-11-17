@@ -1,5 +1,8 @@
 import countries from 'i18n-iso-countries';
 import { exaResponseSchema } from './exa-response.schema.js';
+import { fetchWithTimeout } from './fetch-with-timeout.js';
+
+const EXA_TIMEOUT_MS = 20_000;
 
 export async function searchExa(
   query: string,
@@ -18,22 +21,26 @@ export async function searchExa(
     throw new Error(`Could not resolve country code: ${country}`);
   }
 
-  const response = await fetch('https://api.exa.ai/search', {
-    method: 'POST',
-    headers: {
-      'x-api-key': apiKey,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      query,
-      type: 'auto',
-      numResults: resultsPerQuery,
-      userLocation: countryCode,
-      contents: {
-        highlights: true,
+  const response = await fetchWithTimeout(
+    'https://api.exa.ai/search',
+    {
+      method: 'POST',
+      headers: {
+        'x-api-key': apiKey,
+        'Content-Type': 'application/json',
       },
-    }),
-  });
+      body: JSON.stringify({
+        query,
+        type: 'auto',
+        numResults: resultsPerQuery,
+        userLocation: countryCode,
+        contents: {
+          highlights: true,
+        },
+      }),
+    },
+    { label: 'Exa search', timeoutMs: EXA_TIMEOUT_MS },
+  );
 
   if (!response.ok) {
     throw new Error(

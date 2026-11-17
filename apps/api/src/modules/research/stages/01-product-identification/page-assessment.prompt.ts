@@ -21,8 +21,8 @@ Input is JSON:
 Read all pages together. Return:
 1. the single best natural commercial name for the described product;
 2. the single best general product category;
-3. a general category for finding other sellers of the same product type,
-   without requiring its particular material, treatment or application.
+3. the broadest natural commercial name for the same product type,
+   without optional qualifiers.
 
 Rules:
 - Use only the supplied pages. Do not search the web. Do not invent terms.
@@ -35,21 +35,24 @@ Rules:
 - categoryName: one general category a seller would use. Do not require the
   product's material or treatment. Prefer a category without an application
   restriction when a natural term exists.
-- generalCategoryName: after choosing productName and categoryName, use them
-  and the supplied pages to identify the natural general category for the
-  same product type. Omit material, treatment and application restrictions
-  when the pages support the broader category. Preserve the product type;
-  do not broaden to raw materials, an industry or a general assortment.
-  Do not merely delete words: the resulting category must itself be supported
-  by the supplied pages. If categoryName already meets this definition, or no
-  broader suitable category is supported, return the same value as categoryName.
+- generalCategoryName: return the broadest natural commercial name that
+  still identifies the same product type.
+  Remove optional qualifiers describing material, species, treatment,
+  application, location of use, colour, grade, dimensions, brand or style.
+  Do not stop at an intermediate category if removing another qualifier
+  leaves a valid name for the same product type.
+  The remaining name must be used in the supplied commercial page text.
+  It may occur within a longer product or category name; a separate
+  heading containing only that name is not required.
+  Preserve words essential to identifying the product type.
+  Do not broaden to raw materials, an industry or a general assortment.
+  Return categoryName unchanged only if it already meets these rules.
 - Return productName, categoryName and generalCategoryName in targetLanguage,
   using natural commercial wording for targetCountry. The English input and the languages
   of individual pages must not override targetLanguage.
   Established borrowed material names are allowed.
 - Prefer commercial product/category pages; articles and search pages alone
   are not enough.
-- Ignore metadata such as foundCount, provider or search ranking.
 - In understanding, state in one sentence in English how you understood the task.
 - notes: short English notes on ambiguity or limitations.
 

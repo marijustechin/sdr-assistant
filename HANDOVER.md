@@ -1,4 +1,28 @@
-# Handover — 2026-11-14
+# Handover
+
+## 2026-11-17 — page collection and company discovery
+
+- `stages/02-company-discovery/` is gone. `stages/02-page-collection/` replaces it: search over
+  the three identified names (20 results per provider), merge with 01's pages, content fetch,
+  then triage — one LLM call per page, six at a time, `page-triage-v17`. It writes
+  `02.2-tirage.json` and `02.3-page-collection-response.json`.
+- `stages/03-company-discovery/` is live: one profile per good domain. Prompt
+  `company-discovery-v9`; verdict `a` requires the identifying material and product form
+  (treatment, grade, colour, dimension, brand and style are optional qualifiers); prices are
+  accepted from any supplied page but only within 1 200 characters of at least two product-name
+  stems, and placeholder zeros are dropped. It writes `04-companies-<stamp>.json`, and the run
+  stores `result: {companies}`.
+- 01 and the 02 search step are **fixture replays** for now: `temp/` is git-ignored and holds
+  `identified-product-dailylentes.json` + `identification-pages-dailylentes25.json` (25 curated
+  pages) for 01, and `02.1-merged-pages.json` for 02. The live code is commented out in place,
+  so re-enabling it is uncommenting, not rewriting.
+- Run robustness: `llmChat` has a 90 s timeout, every stage update writes `lastHeartbeatAt`, and
+  runs silent for 5 minutes are marked `INTERRUPTED` at boot and before each `start()`.
+- **Not verified here:** the full `next build` — the DSH sandbox blocks the child process it
+  spawns (`spawn EPERM`); API `tsc` and `npm run verify:web` both pass.
+- Numbers, open items and revert paths: [ops/current.md](ops/current.md).
+
+## 2026-11-14 — baseline
 
 ## Baseline
 
