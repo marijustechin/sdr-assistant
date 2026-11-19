@@ -16,12 +16,20 @@ import {
   PAGE_ASSESSMENT_PROMPT_VERSION,
 } from './page-assessment.prompt.js';
 import {
-  pageAssessmentSchema,
-  type PageAssessment,
+  buildPageFactsSchema,
+  type PageFacts,
 } from './page-assessment.schema.js';
+import { resolveStudySpec } from './page-assessment.spec.js';
+import {
+  deriveVerdict,
+  type AssessmentOutcome,
+} from './page-assessment.verdict.js';
 
-/** One row of the assessment dump: the verdict plus the page it belongs to. */
-type AssessedPage = PageAssessment & { url: string };
+/** One row of the assessment dump: the derived verdict plus the facts behind it. */
+type AssessedPage = AssessmentOutcome & {
+  url: string;
+  facts: PageFacts;
+};
 
 @Injectable()
 export class PageAssessmentService {
@@ -34,9 +42,19 @@ export class PageAssessmentService {
     const { targetCountry, targetLanguage, product, pages } = data;
     const runTag = `${slugify(product.generalCategoryName)}-${PAGE_ASSESSMENT_PROMPT_VERSION}-${timestampForFileName()}`;
 
+    // Fail before the first paid call when the study has no definition for this
+    // category: without the boundary and the traits every page answer would be
+    // judged against nothing.
+    const spec = resolveStudySpec(product.generalCategoryName);
+    const factsSchema = buildPageFactsSchema(
+      spec.traits.map((trait) => trait.name),
+    );
+
     const assessed: AssessedPage[] = [];
 
     for (const [index, page] of pages.entries()) {
+      // Progress doubles as the run heartbeat: stage 02 marks a run
+      // INTERRUPTED when no update arrives for five minutes.
       // eslint-disable-next-line no-await-in-loop
       await onStage?.(`03.1 Assessing pages ${index}/${pages.length}`);
 
@@ -50,6 +68,7 @@ export class PageAssessmentService {
         targetCountry,
         targetLanguage,
         product,
+        spec,
         page: {
           url: page.url,
           title: page.title,
@@ -68,9 +87,10 @@ export class PageAssessmentService {
       const raw = response.choices[0]?.message.content ?? '';
 
       try {
-        const parsed = pageAssessmentSchema.parse(parseJsonObject(raw));
+        const facts = factsSchema.parse(parseJsonObject(raw));
+        const outcome = deriveVerdict(facts, spec);
 
-        assessed.push({ url: page.url, ...parsed });
+        assessed.push({ url: page.url, ...outcome, facts });
       } catch (error) {
         // A dirty answer is a page failure, not a run failure: keep the raw
         // text so the malformed answer can be inspected after the run.
@@ -78,7 +98,6 @@ export class PageAssessmentService {
 
         this.logger.warn(`Assessment failed for ${page.url}: ${message}`);
 
-        // eslint-disable-next-line no-await-in-loop
         await writeJsonFile(
           resolveFileName(
             `03.1-raw-failure-${String(index).padStart(3, '0')}-${runTag}`,
