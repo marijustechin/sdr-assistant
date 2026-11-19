@@ -19,6 +19,7 @@ test('renders the shell, navigation and theme switch', async ({ page }) => {
     'page',
   );
   await expect(mainNav.getByRole('link', { name: 'Products' })).toBeVisible();
+  await expect(mainNav.getByRole('link', { name: 'Settings' })).toBeVisible();
 
   await expect(page.getByRole('group', { name: 'Colour theme' })).toBeVisible();
 });
@@ -43,6 +44,46 @@ test('lists products and marks the section', async ({ page }) => {
     'aria-current',
     'page',
   );
+});
+
+test('validates and saves research settings rendered from API metadata', async ({
+  page,
+}) => {
+  await page.goto('/settings/research');
+
+  await expect(
+    page.getByRole('heading', { name: 'Research settings' }),
+  ).toBeVisible();
+
+  const section = page.getByRole('navigation', { name: 'Settings' });
+  await expect(section.getByRole('link', { name: 'Research' })).toHaveAttribute(
+    'aria-current',
+    'page',
+  );
+
+  const input = page.getByLabel('Results per query');
+  await expect(input).toHaveValue('20');
+  await expect(page.getByText('Default 20', { exact: false })).toBeVisible();
+  await expect(page.getByText('Allowed 1–50', { exact: false })).toBeVisible();
+
+  await input.fill('60');
+  await page.getByRole('button', { name: 'Save settings' }).click();
+
+  await expect(
+    page.getByText('Results per query must be at most 50.'),
+  ).toBeVisible();
+
+  const notifications = page.getByRole('region', { name: 'Notifications' });
+  await expect(
+    notifications.getByText('Check the highlighted settings'),
+  ).toBeVisible();
+
+  await input.fill('30');
+  await page.getByRole('button', { name: 'Save settings' }).click();
+  await expect(notifications.getByText('Settings saved')).toBeVisible();
+
+  await page.reload();
+  await expect(page.getByLabel('Results per query')).toHaveValue('30');
 });
 
 test('shows product tabs, history and the start form', async ({ page }) => {

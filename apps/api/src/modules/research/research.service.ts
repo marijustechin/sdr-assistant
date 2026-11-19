@@ -5,13 +5,18 @@ import {
   type OnModuleInit,
 } from '@nestjs/common';
 
+import countries from 'i18n-iso-countries';
+
 import type { Prisma } from '../../generated/prisma/client.js';
 import type { CreateResearchDto } from './dto/create-research.dto.js';
 
 import { ProductIdentificationService } from './stages/01-product-identification/product-identification.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { PageCollectionService } from './stages/02-page-collection/page-collection.service.js';
-import { CompanyDiscoveryService } from './stages/03-company-discovery/company-discovery.service.js';
+import { CompanyDiscoveryService } from './stages/04-company-discovery/company-discovery.service.js';
+import { SettingsService } from '../settings/settings.service.js';
+import { PageAssessmentService } from './stages/03-page-assessment/page-assessment.service.js';
+import { languageByCountry } from './lib/utils.js';
 
 /**
  * How long a run may go without any stage update before it is considered dead.
@@ -28,8 +33,10 @@ export class ResearchService implements OnModuleInit {
   constructor(
     private readonly productIdentificationService: ProductIdentificationService,
     private readonly pageCollectionService: PageCollectionService,
+    private readonly pageAssessmentService: PageAssessmentService,
     private readonly companyDiscoveryService: CompanyDiscoveryService,
     private readonly prismaService: PrismaService,
+    private readonly settingsService: SettingsService,
   ) {}
 
   private readonly logger = new Logger(ResearchService.name);
@@ -148,11 +155,19 @@ export class ResearchService implements OnModuleInit {
     }
   }
 
+  /**
+   * ////////////////////////////////////////////////
+   * @param jobId
+   * @param dto
+   */
   private async runResearch(
     jobId: string,
     dto: CreateResearchDto,
   ): Promise<void> {
     try {
+      const resultsPerQuery = await this.settingsService.getNumber(
+        'research.pageCollection.resultsPerQuery',
+      );
       await this.prismaService.research.update({
         where: { id: jobId },
         data: {
@@ -169,33 +184,68 @@ export class ResearchService implements OnModuleInit {
         });
       };
 
+      // Research variables
+      const countryCode = countries.getAlpha2Code(dto.country, 'en') ?? 'xx';
+      const targetLanguage = languageByCountry[countryCode.toUpperCase()];
+
+      if (!targetLanguage) {
+        throw new Error(`Target language is not configured for ${dto.country}`);
+      }
+
       // 01. Product identification
       const identifiedProduct =
-        await this.productIdentificationService.identify(dto, updateStage);
+        await this.productIdentificationService.identify(
+          dto,
+          targetLanguage,
+          updateStage,
+        );
 
       // 02. Page collection ///////////////////////////////////////////////
       const collectedPages = await this.pageCollectionService.collect(
         dto,
         identifiedProduct,
+        targetLanguage,
         updateStage,
+        resultsPerQuery,
       );
 
-      // 03. Company discovery
-      const companies = await this.companyDiscoveryService.discover(
+      // 03. Page assessment
+      const assessedPages = await this.pageAssessmentService.assessPages(
         {
           targetCountry: dto.country,
-          product: identifiedProduct.product,
+          targetLanguage,
+          product: {
+            productName: identifiedProduct.product.productName,
+            categoryName: identifiedProduct.product.categoryName,
+            generalCategoryName: identifiedProduct.product.generalCategoryName,
+            description: dto.description,
+          },
           pages: collectedPages,
         },
         updateStage,
       );
+
+      // 03. Company discovery
+      // const companies = await this.companyDiscoveryService.discover(
+      //   {
+      //     targetCountry: dto.country,
+      //     product: identifiedProduct.product,
+      //     pages: collectedPages,
+      //   },
+      //   updateStage,
+      // );
 
       await this.prismaService.research.update({
         where: { id: jobId },
         data: {
           status: 'COMPLETED',
           stage: null,
-          result: asJson({ companies }),
+          result: asJson({
+            completedThrough: '02-page-collection',
+            resultsPerQuery,
+            identificationPageCount: identifiedProduct.sourcePages.length,
+            selectedPageCount: collectedPages.length,
+          }),
         },
       });
     } catch (error) {

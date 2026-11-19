@@ -1,4 +1,5 @@
-export type NavIconName = 'overview' | 'products' | 'researches' | 'health';
+export type NavIconName =
+  'overview' | 'products' | 'researches' | 'settings' | 'health';
 
 export type NavItem = {
   href: string;
@@ -27,6 +28,13 @@ export const MAIN_NAV: readonly NavItem[] = [
     icon: 'researches',
     isActive: (pathname) =>
       pathname === '/researches' || pathname.startsWith('/researches/'),
+  },
+  {
+    href: '/settings',
+    label: 'Settings',
+    icon: 'settings',
+    isActive: (pathname) =>
+      pathname === '/settings' || pathname.startsWith('/settings/'),
   },
   {
     href: '/health',
@@ -85,6 +93,16 @@ export function getSectionNav(pathname: string): SectionNav | null {
     const id = safeDecode(productRoute[1]);
 
     return { label: 'Product', items: productTabs(id) };
+  }
+
+  if (/^\/settings(?:\/research)?\/?$/.test(pathname)) {
+    return {
+      label: 'Settings',
+      items: [
+        { href: '/settings', label: 'Overview' },
+        { href: '/settings/research', label: 'Research' },
+      ],
+    };
   }
 
   return null;

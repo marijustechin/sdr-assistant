@@ -6,7 +6,7 @@ type NavIconProps = {
 };
 
 /**
- * The four navigation icons, inlined so the shell has no icon dependency.
+ * The navigation icons, inlined so the shell has no icon dependency.
  * Stroke-based, 24×24, inherits `currentColor`.
  */
 export function NavIcon({ name, className = 'nav-icon' }: NavIconProps) {
@@ -38,6 +38,14 @@ export function NavIcon({ name, className = 'nav-icon' }: NavIconProps) {
         <>
           <circle cx="11" cy="11" r="6.5" />
           <path d="M16 16l5 5" />
+        </>
+      )}
+
+      {name === 'settings' && (
+        <>
+          <path d="M4 7h8M18 7h2M4 17h2M12 17h8" />
+          <circle cx="15" cy="7" r="2.2" />
+          <circle cx="9" cy="17" r="2.2" />
         </>
       )}
 

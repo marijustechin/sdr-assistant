@@ -281,11 +281,12 @@ export class CompanyDiscoveryService {
         index += 1;
 
         const [domain, domainPages] = entries[position];
-
+        // eslint-disable-next-line no-await-in-loop
         await onStage?.(
           `3.1 Discovering companies ${position + 1}/${entries.length} (${domain})`,
         );
 
+        // eslint-disable-next-line no-await-in-loop
         results[position] = await this.discoverDomain(
           domain,
           domainPages,
@@ -412,6 +413,7 @@ export class CompanyDiscoveryService {
 
       for (const url of candidates) {
         try {
+          // eslint-disable-next-line no-await-in-loop
           extraPages.push(await scrapePage(url));
           sources.add(url);
         } catch (error) {

@@ -21,12 +21,15 @@ describe('MAIN_NAV', () => {
     expect(activeLabels('/products/abc/edit')).toEqual(['Products']);
     expect(activeLabels('/researches')).toEqual(['Researches']);
     expect(activeLabels('/researches/job-1')).toEqual(['Researches']);
+    expect(activeLabels('/settings')).toEqual(['Settings']);
+    expect(activeLabels('/settings/research')).toEqual(['Settings']);
     expect(activeLabels('/health')).toEqual(['API health']);
   });
 
   it('does not match a section by a mere prefix of another route', () => {
     expect(activeLabels('/healthcheck')).toEqual([]);
     expect(activeLabels('/products-archive')).toEqual([]);
+    expect(activeLabels('/settings-archive')).toEqual([]);
   });
 });
 
@@ -62,10 +65,21 @@ describe('getSectionNav', () => {
     );
   });
 
+  it('offers overview/research tabs inside settings', () => {
+    const expected = [
+      { href: '/settings', label: 'Overview' },
+      { href: '/settings/research', label: 'Research' },
+    ];
+
+    expect(getSectionNav('/settings')?.items).toEqual(expected);
+    expect(getSectionNav('/settings/research')?.items).toEqual(expected);
+  });
+
   it('has no child navigation where there are no sibling pages', () => {
     expect(getSectionNav('/')).toBeNull();
     expect(getSectionNav('/researches')).toBeNull();
     expect(getSectionNav('/researches/job-1')).toBeNull();
+    expect(getSectionNav('/settings/unknown')).toBeNull();
     expect(getSectionNav('/health')).toBeNull();
   });
 });

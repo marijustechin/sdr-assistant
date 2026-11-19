@@ -8,17 +8,26 @@ Updated: 2026-11-17
 
 ## Now
 
-- [ ] **Research pipeline — next measurement round** — the flow now runs end to end, with stages 01
-      and the 02 search step fed from dumps. Next: re-enable the live 01 path and the 02
-      search/merge (credits permitting), then measure the v9 price filter and the contact gap.
-      Checklist and revert paths in [ops/current.md](ops/current.md).
+- [ ] **Settings — apply the migration and verify against Postgres** — start the database
+      (`npm run db:up`) and run `npm run db:migrate`. The single `20261117190641_add_setting`
+      migration is in the tree but was **not applied** during development (Postgres was down).
+      Then exercise `GET/PATCH /settings` and the `/settings/research` form against the real API.
+      See [ops/current.md](ops/current.md).
 
 ## Next
 
+- [ ] **Settings follow-ups** (deliberately deferred; details in [ops/current.md](ops/current.md))
+  - [ ] Wire `research.pageCollection.resultsPerQuery` into stage 02 when its live search is
+        re-enabled. It is protected-area work and needs an explicit request.
+  - [ ] Per-run snapshot of the settings a run used (schema decision: `researches` JSON column vs.
+        `result.settings`); also needs research-module access.
+  - [ ] Model-per-stage group (`research.models`).
+  - [ ] More setting groups (triage, fetching, discovery) — one registry entry each.
+
 - [ ] **Human pass over the UI** (parked while the research workstream runs) — everything
       behavioural is automated; what is left needs eyes and a real browser. `npm run build -w
-      @sdr-assistant/web` is green (11 routes); pages were smoke-tested against a live and a dead
-      API; `npm run e2e` passes 10 scenarios.
+      @sdr-assistant/web` is green (13 routes); pages were smoke-tested against a live and a dead
+      API; `npm run e2e` passes 11 scenarios.
   - [ ] Visual review: spacing, contrast, light/dark, long names and empty states.
   - [ ] 360 px and keyboard-only pass (focus order, skip link, toast Escape).
   - [ ] One real run against the paid API.
@@ -29,6 +38,10 @@ Updated: 2026-11-17
 - [ ] **Country data** — replace the hardcoded 7 countries in `lib/countries.ts`; needs a
       decision with the backend owner (code vs English name).
 - [ ] **ADR-001 research pipeline** — draft only; the research workstream owns the content.
+- [ ] **Research pipeline — next measurement round** — the flow runs end to end, with stages 01
+      and the 02 search step fed from dumps. Next: re-enable the live 01 path and the 02
+      search/merge (credits permitting), then measure the v9 price filter and the contact gap.
+      Checklist and revert paths in the "Parked" section of [ops/current.md](ops/current.md).
 - [ ] **Research follow-ups** (see [ops/current.md](ops/current.md))
   - [ ] Re-enable the live 01 path and the 02 search + merge; they are commented out while runs are
         fed from dumps.
@@ -51,6 +64,24 @@ Updated: 2026-11-17
   scoped to `apps/web`, and do not run repo-wide formatters.
 
 ## Done
+
+- [x] **Settings foundation — API + research settings page** (2026-11-17). Evidence: `verify:web`
+      green (65 tests); API `tsc --noEmit` exit 0; API vitest 10/10; E2E 11/11; `next build`
+      13 routes. The single `20261117190641_add_setting` migration is committed but **not applied**
+      (Postgres was down), so `GET/PATCH /settings` were not exercised against Postgres.
+  - [x] API: `SettingsModule` (controller, service, registry, mapper), `Setting` Prisma model,
+        default → DB precedence, grouped `GET /settings` and transactional `PATCH /settings`
+        with a 400 that names every failing key.
+  - [x] First setting `research.pageCollection.resultsPerQuery` (integer, default 20, 1–50).
+        Stage 02 is unchanged: its search step is commented out, and the registry carries a TODO
+        for the wiring point (protected area).
+  - [x] Web: "Settings" sidebar item, `/settings` and `/settings/research`, a form generated from
+        the API metadata with client validation, server error, loading/empty/error/pending states
+        and save toasts. Server action in `features/update-settings`.
+  - [x] Tests: registry defaults/bounds/unknown key/bad type, entity schema, rendered form
+        validation error, plus an E2E settings scenario with the mock API.
+  - [x] How to add a setting in one place and what is deliberately deferred (per-run snapshot,
+        model-per-stage, more groups) are recorded in [ops/current.md](ops/current.md).
 
 - [x] **Research pipeline, stages 02–03** (2026-11-17). Evidence: `tsc --noEmit` and the API build
       exit 0; three full runs on the same 132-page input produced 52/49/49 companies with 4–5 `a`

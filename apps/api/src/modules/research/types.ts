@@ -33,7 +33,8 @@ export type PageForAssessment = {
 export type TermCandidates = {
   productNames: string[];
   categoryNames: string[];
-  notes: string;
+  notes?: string;
+  targetLanguage: string;
 };
 
 export type TermSearchRun = {
@@ -80,4 +81,16 @@ export type TriageReport = {
 export type ProductIdentificationResponse = {
   product: IdentifiedProduct;
   sourcePages: PageForAssessment[];
+};
+
+export type PageAssessmentInput = {
+  targetCountry: string;
+  targetLanguage: string;
+  product: {
+    productName: string;
+    categoryName: string;
+    generalCategoryName: string;
+    description?: string;
+  };
+  pages: PageForAssessment[];
 };

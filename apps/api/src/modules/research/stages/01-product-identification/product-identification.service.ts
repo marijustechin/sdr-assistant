@@ -1,5 +1,4 @@
 import { Injectable, Logger } from '@nestjs/common';
-import countries from 'i18n-iso-countries';
 
 import { LLM_CONFIG } from '../../config/llm-config.js';
 import { CreateResearchDto } from '../../dto/create-research.dto.js';
@@ -19,8 +18,11 @@ import {
 } from '../../types.js';
 import {
   getRandom,
+  languageByCountry,
   readJsonFile,
   resolveFileName,
+  slugify,
+  timestampForFileName,
   writeJsonFile,
 } from '../../lib/utils.js';
 
@@ -30,26 +32,10 @@ export class ProductIdentificationService {
 
   async identify(
     dto: CreateResearchDto,
+    targetLanguage: string,
     onStage?: (stage: string) => Promise<void>,
   ): Promise<ProductIdentificationResponse> {
-    const countryCode = countries.getAlpha2Code(dto.country, 'en') ?? 'xx';
     const targetCountry = dto.country;
-
-    const languageByCountry: Record<string, string> = {
-      LT: 'Lithuanian',
-      LV: 'Latvian',
-      EE: 'Estonian',
-      DE: 'German',
-      HU: 'Hungarian',
-      PL: 'Polish',
-      ES: 'Spanish',
-    };
-
-    const targetLanguage = languageByCountry[countryCode.toUpperCase()];
-
-    if (!targetLanguage) {
-      throw new Error(`Target language is not configured for ${targetCountry}`);
-    }
 
     // await onStage?.('1.1 Generating term candidates...');
     // const termCandidates = await this.generateTermCandidates(
@@ -79,31 +65,16 @@ export class ProductIdentificationService {
     //   dto.description,
     // );
 
-    // /* Laikinas: write data to files */
-    // const fileNameForIdentifiedProduct = resolveFileName(
-    //   '01.1-identified-product',
-    // );
-    // await writeJsonFile(fileNameForIdentifiedProduct, identifiedProduct);
-
-    // const fileNameForCandidatePages = resolveFileName(
-    //   '01.2-indentification-pages',
-    // );
-    // await writeJsonFile(fileNameForCandidatePages, preparedCandidates);
-    // ///////////Laikinas: pabaiga //////////////////////////
-    const fileNameForIdentifiedProduct = resolveFileName(
-      'identified-product-dailylentes',
-    );
+    //////////// Laikinas //////////////////////////////////////////
     const identifiedProduct: IdentifiedProduct = await readJsonFile(
-      fileNameForIdentifiedProduct,
-    );
-    const fileNameForCandidatePages = resolveFileName(
-      'identification-pages-dailylentes25',
+      resolveFileName('1.4-identified-product-dailylentes'),
     );
     const preparedCandidates: PageForAssessment[] = await readJsonFile(
-      fileNameForCandidatePages,
+      resolveFileName('1.3-prepared-candidates-dailylentes'),
     );
-    const random25Pages = getRandom(preparedCandidates, 25);
-    return { product: identifiedProduct, sourcePages: random25Pages };
+    //const random25Pages = getRandom(preparedCandidates, 25);
+    //// Laikinas pabaiga /////////////////////////////////////////////
+    return { product: identifiedProduct, sourcePages: preparedCandidates };
   }
 
   /**

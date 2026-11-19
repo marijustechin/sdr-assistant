@@ -16,6 +16,9 @@
  * v17 — v15 plus one rule 1 sentence: a listing on a third-party platform is not
  * the seller's own offer. The only part of v16 that demonstrably helped
  * (skelbiu.lt), without touching rule 2.
+ *
+ * v18 — require evidence that the publisher offers the goods. A seller can
+ * make that offer in an article. Keep v17 literal category matching.
  */
 export const PAGE_TRIAGE_PROMPT_V15 = `
 You decide whether ONE web page is a usable candidate for B2B prospect discovery.
@@ -167,13 +170,109 @@ Return JSON only with exactly these fields:
  "reason": <short English note for "none", else null>}
 `.trim();
 
-// Revert paths:
-//   v17 -> v15: swap the two constants below to PAGE_TRIAGE_PROMPT_V15 and
-//   'page-triage-v15'. The triage input matches v15 again, so nothing else
-//   changes.
-//   v17 -> v16: use PAGE_TRIAGE_PROMPT_V16 and 'page-triage-v16', and add
-//   productName / categoryName / description in PageCollectionService's
-//   buildTriageInput (v16 reads them).
-export const PAGE_TRIAGE_PROMPT_VERSION = 'page-triage-v17';
+export const PAGE_TRIAGE_PROMPT_V18 = `
+Decide whether one page shows that its publisher sells goods in the category
+named by generalCategoryName. Input fields are targetCountry,
+generalCategoryName, and page (URL, title and text).
 
-export const PAGE_TRIAGE_PROMPT = PAGE_TRIAGE_PROMPT_V17;
+Apply these checks in order.
+
+1. Source. Return "none" for journals, news sites, dictionaries, terminology
+   pages, classifieds, directories, price-comparison sites and third-party
+   marketplaces. This includes a seller's advert hosted on a third-party
+   platform. Also exclude mass-market chains and general-purpose stores
+   spanning many unrelated departments, even on a relevant product page.
+   On a seller's own site, apply the next checks to any page format, including
+   articles, guides and how-to pages.
+
+2. Category. Keep the literal matching rule: every word of generalCategoryName
+   must appear in the supplied title or text, in any order or grammatical
+   form. Other words may appear between them. A translation or synonym alone
+   does not satisfy a missing word. If a word is missing, return "none".
+
+3. Offer. Return "good" only when the publisher offers those goods. A product
+   card or catalogue entry identifying the goods as part of the seller's range
+   is sufficient. So is a statement that customers can buy or order those goods
+   from the publisher or find them in its stores. A price or checkout is optional.
+   Apply this same test inside articles and guides.
+   Return "none" if the only offer is a service such as installation or repair,
+   or the goods appear only as materials used in a completed project, advice,
+   or a reference to another seller. A price for labour proves only a service.
+   If the business offers both goods and services, its own offer of the goods
+   qualifies.
+
+Use only the supplied page. For "good", copy one contiguous verbatim excerpt
+from the text or title showing the strongest evidence of the goods on offer.
+Use surrounding words when they identify the seller's range or where to buy.
+A bare category mention in unrelated prose is insufficient. Set reason to null.
+For "none", set evidence to null and give a short English reason naming the
+deciding check. For a failed category check, identify the missing word.
+
+Return JSON only with exactly these fields:
+{"verdict": "good" | "none", "evidence": <verbatim quote or null>,
+ "reason": <short English note for "none", else null>}
+`.trim();
+
+export const PAGE_TRIAGE_PROMPT_V19 = `
+Decide whether one page shows that its publisher sells goods in the category
+named by generalCategoryName. Input fields are targetCountry,
+generalCategoryName, and page (URL, title and text).
+
+Apply these checks in order.
+
+1. Source. Return "none" for journals, news sites, dictionaries, terminology
+   pages, classifieds, directories, price-comparison sites and third-party
+   marketplaces. This includes a seller's advert hosted on a third-party
+   platform, and a company profile published in someone else's catalogue or
+   directory. An article, guide or buyer's advice published on a site that is
+   not itself a seller — a portal, magazine, news site or directory — is a
+   third-party publication: return "none", even when it quotes a seller's
+   offer. Also exclude mass-market chains and general-purpose stores
+   spanning many unrelated departments, even on a relevant product page.
+   On a seller's own site, apply the next checks to any page format, including
+   articles, guides and how-to pages.
+
+2. Category. Keep the literal matching rule: every word of generalCategoryName
+   must appear in the supplied title or text, in any order or grammatical
+   form. Other words may appear between them. A translation or synonym alone
+   does not satisfy a missing word. If a word is missing, return "none".
+
+3. Offer. Return "good" only when the site's own publisher offers those goods.
+   A product card, or a catalogue entry that presents the goods as buyable —
+   product name, dimensions, price, or an order/buy action — is sufficient. So
+   is a statement that customers can buy or order those goods from the
+   publisher or find them in its stores. A price or checkout is optional. Apply
+   this same test inside articles and guides on the seller's own site.
+   A list or table of department or category names is not an offer, even when
+   the category appears in it.
+   The offer must belong to the publisher of this page. If the page presents
+   someone else's company as the seller — for example a company name shown with
+   its address, phone or company code above or below the offer, inside a
+   catalogue, directory, marketplace or shop inside another shop — return
+   "none", even when that company's offer is quoted in full.
+   Return "none" if the only offer is a service such as installation or repair,
+   or the goods appear only as materials used in a completed project, advice,
+   or a reference to another seller. A price for labour proves only a service.
+   If the business offers both goods and services, its own offer of the goods
+   qualifies.
+
+Use only the supplied page. For "good", copy one contiguous verbatim excerpt
+from the text or title showing that this publisher offers these goods. A
+manufacturer's range description, a price-list line, a catalogue item or a
+sentence about selling them all qualify; quote the words that name the seller
+when they appear nearby. A navigation menu, a category link, an installation
+instruction, an unrelated product line or a bare category mention in unrelated
+prose is too weak on its own. Set reason to null.
+For "none", set evidence to null and give a short English reason naming the
+deciding check. For a failed category check, identify the missing word.
+
+Return JSON only with exactly these fields:
+{"verdict": "good" | "none", "evidence": <verbatim quote or null>,
+ "reason": <short English note for "none", else null>}
+`.trim();
+
+// To restore v18, select PAGE_TRIAGE_PROMPT_V18 and 'page-triage-v18' below.
+// To restore v17, select PAGE_TRIAGE_PROMPT_V17 and 'page-triage-v17'.
+// v16 additionally requires productName, categoryName and description in buildTriageInput.
+export const PAGE_TRIAGE_PROMPT_VERSION = 'page-triage-v19';
+export const PAGE_TRIAGE_PROMPT = PAGE_TRIAGE_PROMPT_V19;

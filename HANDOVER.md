@@ -1,5 +1,23 @@
 # Handover
 
+## 2026-11-17 — settings foundation
+
+- New `apps/api/src/modules/settings`: typed registry (zod schema, default, label, description,
+  type, min/max), `GET /settings` (groups → items) and `PATCH /settings` (validate every key,
+  upsert in one transaction, 400 naming the failing key). Precedence is code default → DB value.
+- Prisma `Setting` model mapped to `settings` (key → JSON). Migration
+  `20261117190641_add_setting` is in the tree but **not applied** — Postgres was down; run
+  `npm run db:up && npm run db:migrate` before using the endpoints.
+- First setting: `research.pageCollection.resultsPerQuery` (integer, default 20, 1–50). Stage 02
+  is unchanged; its live search is still commented out and replays a dump, so no run reads the
+  setting yet. The wiring point is marked with a TODO in the registry.
+- Web: "Settings" sidebar item, `/settings` hub, `/settings/research` form generated from the API
+  metadata (client validation, server error, loading/empty/error/pending states, save toasts).
+- Evidence: `npm run verify:web` green (65 tests); API `tsc` exit 0; API vitest 10/10;
+  E2E 11/11; `next build` 13 routes.
+- How to add a setting, plus the deferred per-run snapshot, model-per-stage and extra groups:
+  [ops/current.md](ops/current.md).
+
 ## 2026-11-17 — page collection and company discovery
 
 - `stages/02-company-discovery/` is gone. `stages/02-page-collection/` replaces it: search over

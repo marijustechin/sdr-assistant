@@ -4,8 +4,15 @@ import { HealthModule } from './modules/health/health.module.js'
 import { PrismaModule } from './modules/prisma/prisma.module.js'
 import { ProductsModule } from './modules/products/products.module.js'
 import { ResearchModule } from './modules/research/research.module.js'
+import { SettingsModule } from './modules/settings/settings.module.js'
 
 @Module({
-  imports: [PrismaModule, HealthModule, ProductsModule, ResearchModule],
+  imports: [
+    PrismaModule,
+    HealthModule,
+    ProductsModule,
+    ResearchModule,
+    SettingsModule,
+  ],
 })
 export class AppModule {}

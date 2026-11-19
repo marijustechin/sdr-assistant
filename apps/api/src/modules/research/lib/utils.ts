@@ -55,3 +55,43 @@ export function getRandom(array: any, count: number) {
 
   return arrayCopy.slice(0, count);
 }
+
+export function slugify(text: string): string {
+  const slug = text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{M}+/gu, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-/, '')
+    .replace(/-$/, '');
+
+  return slug.slice(0, 8).replace(/-$/, ''); // Pašalina brūkšnelį, jei kirpimas pataikė ant jo
+}
+
+// TODO: reikia igyvendinti placiau ir patobulinti
+export const languageByCountry: Record<string, string> = {
+  LT: 'Lithuanian',
+  LV: 'Latvian',
+  EE: 'Estonian',
+  DE: 'German',
+  HU: 'Hungarian',
+  PL: 'Polish',
+  ES: 'Spanish',
+};
+
+/**
+ * ISO 639-1 codes for the search query operators (`lang:lt`). Kept next to
+ * `languageByCountry` so a new market adds its language in one place: the
+ * country decides the language name, the name decides the code. A language
+ * missing here searches without the operator instead of failing the run.
+ */
+export const languageCodeByLanguage: Record<string, string> = {
+  Lithuanian: 'lt',
+  Latvian: 'lv',
+  Estonian: 'et',
+  German: 'de',
+  Hungarian: 'hu',
+  Polish: 'pl',
+  Spanish: 'es',
+};
+

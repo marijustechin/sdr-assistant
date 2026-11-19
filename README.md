@@ -99,6 +99,11 @@ npm run dev:web
 | `POST /research` | `202` with `{ jobId, status }`; starts an async run for `name`, `description`, `country`, `productId` |
 | `GET /research` | List research jobs |
 | `GET /research/:jobId` | One job: `status`, `stage`, `result`, `error` |
+| `GET /settings` | Registered settings, grouped, with metadata and effective values |
+| `PATCH /settings` | Upsert `{ updates }`; unknown key or invalid value → `400` naming the key |
+
+Settings are validated by the typed registry in `apps/api/src/modules/settings/settings.registry.ts`.
+Precedence is code default, then the value stored in `settings`; no env or per-run overrides yet.
 
 ### Web routes
 
@@ -112,6 +117,8 @@ npm run dev:web
 | `/products/:id/edit` | Edit-product form |
 | `/researches` | Research job list |
 | `/researches/:jobId` | Job detail; polls while `QUEUED`/`RUNNING` |
+| `/settings` | Settings hub |
+| `/settings/research` | Research settings, generated from `GET /settings` |
 | `/api/research/:jobId` | Same-origin proxy used by the poller (the API has no CORS) |
 
 The web app reads the API base URL from `API_URL` (default `http://localhost:4000`) — see
@@ -151,7 +158,7 @@ fields are rejected.
 
 ```bash
 npm run verify:web     # typegen + tsc + eslint --max-warnings=0 + vitest + prettier --check
-npm run e2e:web        # Playwright: 10 rendered scenarios against a mock API
+npm run e2e:web        # Playwright: 11 rendered scenarios against a mock API
 npm run build          # API tsc + next build
 ```
 

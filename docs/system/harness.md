@@ -52,10 +52,11 @@ The web app reads `API_URL` (default `http://localhost:4000`) — see
 | `npm run verify:web` | `typecheck && lint && test && format:check` for `apps/web` | yes, exit 0 |
 | `npm run typecheck -w @sdr-assistant/web` | `next typegen && tsc --noEmit` | yes |
 | `npm run lint -w @sdr-assistant/web` | `eslint . --max-warnings=0` | yes |
-| `npm run test -w @sdr-assistant/web` | `vitest run` (HTTP, polling, theme, navigation, scroll, toast, formatting) | yes, 55 |
-| `npm run e2e -w @sdr-assistant/web` | Playwright against a mock API: 10 rendered-UI scenarios | yes, 10/10 in ~17 s |
+| `npm run test -w @sdr-assistant/web` | `vitest run` (HTTP, polling, theme, navigation, scroll, toast, formatting, settings) | yes, 65 |
+| `npm run test -w @sdr-assistant/api` | `vitest run` (settings registry and response mapper) | yes, 10 |
+| `npm run e2e -w @sdr-assistant/web` | Playwright against a mock API: 11 rendered-UI scenarios | yes, 11/11 in ~42 s |
 | `npm run format -w @sdr-assistant/web` | `prettier --write .` (web only) | yes |
-| `npm run build` | API `tsc` + `next build` | 11 routes; see §4.3 |
+| `npm run build` | API `tsc` + `next build` | 13 routes; see §4.3 |
 | `npm run db:up` / `db:down` | PostgreSQL container | no |
 | `npm run db:migrate` | Prisma migrate dev | no |
 | `npm run db:generate` | Prisma client | no |
@@ -121,7 +122,7 @@ Run in this order; stop at the first failure.
 2. `npm run e2e -w @sdr-assistant/web` — Playwright: shell, lists, product tabs, a full run
    (queued → running → completed), a failed run, a poller that loses its job, 404, theme
    switch + persistence, copy + toast, back-to-top. Add a scenario when you change behaviour.
-3. `npm run build --workspace @sdr-assistant/web` — must list the routes (currently 11:
+3. `npm run build --workspace @sdr-assistant/web` — must list the routes (currently 13:
    the pages, `/_not-found`, `/icon.svg` and the `/api/research/[jobId]` handler). Needs
    `danger-full-access` or a normal terminal, see §4.3.
 4. `npm run dev` — walk anything the automated suites cannot judge: visual design, keyboard
@@ -205,8 +206,8 @@ and tolerate the current behaviour.
 
 ## 10. Known gaps
 
-- Unit tests cover the HTTP failure model, polling, navigation, theme, scroll, toasts and
-  formatting; Playwright covers 10 rendered scenarios. Visual design, keyboard-only and
-  360 px still need a human pass.
+- Unit tests cover the HTTP failure model, polling, navigation, theme, scroll, toasts,
+  formatting and the settings registry/form; Playwright covers 11 rendered scenarios. Visual
+  design, keyboard-only and 360 px still need a human pass.
 - No CI workflow yet (plan 0.9 is optional and unverified here).
 - No lint rule for layer boundaries yet (Phase 4).

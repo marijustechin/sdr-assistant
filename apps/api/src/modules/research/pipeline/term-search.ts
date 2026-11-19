@@ -1,5 +1,6 @@
 import { dsSearch } from '../lib/ds-search.js';
 import { searchExa } from '../lib/exa-search.js';
+import { languageCodeByLanguage } from '../lib/utils.js';
 import type {
   TermCandidates,
   TermSearchResult,
@@ -21,6 +22,10 @@ const DEFAULT_CONCURRENCY = 4;
  * outage cannot fan out into an unbounded number of calls. A failed search is
  * recorded as `TermSearchRun.error` with empty results — a failure is a value,
  * never an exception that aborts the stage.
+ *
+ * DeepSeek gets the run's language as the `lang:` query operator: its Search
+ * API has no language or country field, and a query without a local word
+ * otherwise drifts into foreign pages. Exa keeps `userLocation` instead.
  */
 export async function searchTermCandidates(
   termCandidates: TermCandidates,
@@ -28,6 +33,14 @@ export async function searchTermCandidates(
 ): Promise<TermSearchRun[]> {
   const { country, resultsPerQuery } = options;
   const concurrency = options.concurrency ?? DEFAULT_CONCURRENCY;
+  const language = languageCodeByLanguage[termCandidates.targetLanguage];
+
+  const EXA_RESULTS_PER_QUERY_MAX = 20;
+
+  const exaResultsPerQuery = Math.min(
+    resultsPerQuery,
+    EXA_RESULTS_PER_QUERY_MAX,
+  );
 
   const seen = new Set<string>();
 
@@ -85,7 +98,7 @@ export async function searchTermCandidates(
           if (job.provider === 'exa') {
             const response = await searchExa(
               job.term,
-              resultsPerQuery,
+              exaResultsPerQuery,
               country,
             );
 
@@ -98,7 +111,9 @@ export async function searchTermCandidates(
               content: null,
             }));
           } else {
-            const response = await dsSearch(job.term, resultsPerQuery);
+            const response = await dsSearch(job.term, resultsPerQuery, {
+              language,
+            });
 
             results = response.results.map((result) => ({
               url: result.url,

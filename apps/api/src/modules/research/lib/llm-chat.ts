@@ -10,6 +10,79 @@ import { type LLMConfig, type DeepSeekResponse } from '../types.js';
  */
 const REQUEST_TIMEOUT_MS = 90_000;
 
+/** Provider-side detail of a non-2xx answer. */
+export type LlmProviderError = {
+  readonly status: number;
+  readonly type: string | null;
+  readonly code: string | null;
+};
+
+/**
+ * A provider answer that came back with a non-2xx status.
+ *
+ * The HTTP status and the provider's own `error.type` / `error.code` are kept,
+ * because callers have to tell a transient page failure from a fatal account
+ * problem: an exhausted balance must stop a whole run, while one bad page must
+ * only fail that page.
+ */
+export class LlmRequestError extends Error {
+  readonly status: number;
+  readonly providerErrorType: string | null;
+  readonly providerErrorCode: string | null;
+
+  constructor(message: string, providerError: LlmProviderError) {
+    super(message);
+    this.name = 'LlmRequestError';
+    this.status = providerError.status;
+    this.providerErrorType = providerError.type;
+    this.providerErrorCode = providerError.code;
+  }
+}
+
+/**
+ * The account has no balance left, so every further call would fail the same
+ * way. Observed shape: HTTP 402 with
+ * `{ "error": { "type": "insufficient_balance_error", "code": "invalid_request_error" } }`.
+ */
+export function isInsufficientBalanceError(error: unknown): boolean {
+  return (
+    error instanceof LlmRequestError &&
+    error.status === 402 &&
+    error.providerErrorType === 'insufficient_balance_error'
+  );
+}
+
+/** Reads `error.type` / `error.code` out of a provider body, tolerating non-JSON. */
+function readProviderError(body: string): {
+  type: string | null;
+  code: string | null;
+} {
+  const empty = { type: null, code: null };
+
+  try {
+    const parsed: unknown = JSON.parse(body);
+
+    if (typeof parsed !== 'object' || parsed === null || !('error' in parsed)) {
+      return empty;
+    }
+
+    const providerError = (parsed as { error: unknown }).error;
+
+    if (typeof providerError !== 'object' || providerError === null) {
+      return empty;
+    }
+
+    const { type, code } = providerError as { type?: unknown; code?: unknown };
+
+    return {
+      type: typeof type === 'string' ? type : null,
+      code: typeof code === 'string' ? code : null,
+    };
+  } catch {
+    return empty;
+  }
+}
+
 export async function llmChat(
   config: LLMConfig,
   systemPrompt: string,
@@ -40,8 +113,14 @@ export async function llmChat(
     });
 
     if (!response.ok) {
-      throw new Error(
-        `DeepSeek API error ${response.status}: ${await response.text()}`,
+      const body = await response.text();
+      const providerError = readProviderError(body);
+      const label =
+        providerError.type === null ? '' : ` (${providerError.type})`;
+
+      throw new LlmRequestError(
+        `DeepSeek API error ${response.status}${label}: ${body.slice(0, 500)}`,
+        { status: response.status, ...providerError },
       );
     }
 

@@ -25,9 +25,12 @@ Migration order: [plan](../plans/frontend-action-plan-2026-11-14.md) §2.
 ```text
 apps/web/
 ├── app/                     routes, route handler, error/not-found/loading, globals.css
-├── _pages/                  research, researches            (FSD pages layer, not routable)
+├── _pages/                  research, researches, settings, research-settings
+│                            (FSD pages layer, not routable)
 ├── features/track-research/ model/use-research-polling.ts + ui/ (details, badge, result)
+├── features/update-settings/api/action.ts + ui/settings-form.tsx
 ├── entities/research/       api/{server,client}.ts, model/schema.ts, index.ts, client.ts
+├── entities/settings/       api/settings.server.ts, model/schema.ts, index.ts, client.ts
 ├── shared/                  api/{http,errors}.ts, config/env.ts, lib/format.ts
 ├── widgets/app-shell/       sidebar, section tabs, navigation model (+ tests)
 ├── lib/                     products.ts (transitional product API), countries.ts
@@ -271,7 +274,7 @@ No default exports for components; pages keep Next's default export signature.
 | Formatting | `npm run format:check` | active |
 | Server/client leaks | `server-only` + a separate `client.ts` entry per slice | active |
 | HTTP failures and polling | `npm run test` (vitest: `shared/api/http`, `use-research-polling`) | active |
-| Rendered behaviour | `npm run e2e` (Playwright, mock API) | active (10 scenarios) |
+| Rendered behaviour | `npm run e2e` (Playwright, mock API) | active (11 scenarios) |
 | Layer boundaries | `eslint-plugin-boundaries` | Phase 4.4 |
 | No `fetch` outside `shared/api` | grep in DoD + review | active (single call site) |
 | Page-level rendering | integration test / manual matrix | Phase 5 + manual |

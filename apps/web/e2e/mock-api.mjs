@@ -80,12 +80,51 @@ const dynamicJobs = {
 
 const createdProducts = new Map();
 
+/** Settings the mock API serves; `value` is what the real API would store. */
+const SETTINGS = {
+  'research.pageCollection.resultsPerQuery': 20,
+};
+
+const SETTINGS_GROUPS = [
+  {
+    key: 'research.pageCollection',
+    label: 'Page collection',
+    description:
+      'Search and triage behaviour of stage 02 for new research runs.',
+    items: [
+      {
+        key: 'research.pageCollection.resultsPerQuery',
+        label: 'Results per query',
+        description:
+          'How many search results stage 02 requests per query per provider.',
+        type: 'integer',
+        default: 20,
+        min: 1,
+        max: 50,
+      },
+    ],
+  },
+];
+
+function settingsPayload() {
+  return {
+    groups: SETTINGS_GROUPS.map((group) => ({
+      ...group,
+      items: group.items.map((item) => ({
+        ...item,
+        value: SETTINGS[item.key] ?? item.default,
+      })),
+    })),
+  };
+}
+
 function reset() {
   for (const state of Object.values(dynamicJobs)) {
     state.calls = 0;
   }
 
   createdProducts.clear();
+  SETTINGS['research.pageCollection.resultsPerQuery'] = 20;
 }
 
 function send(response, status, payload) {
@@ -192,6 +231,63 @@ const server = createServer(async (request, response) => {
 
   if (method === 'GET' && path === '/health') {
     return send(response, 200, { status: 'ok' });
+  }
+
+  if (method === 'GET' && path === '/settings') {
+    return send(response, 200, settingsPayload());
+  }
+
+  if (method === 'PATCH' && path === '/settings') {
+    const body = await readBody(request);
+    const updates = body.updates;
+
+    if (
+      updates === null ||
+      typeof updates !== 'object' ||
+      Array.isArray(updates)
+    ) {
+      return send(response, 400, {
+        statusCode: 400,
+        message: ['updates must be an object'],
+        error: 'Bad Request',
+      });
+    }
+
+    const errors = [];
+    const next = { ...SETTINGS };
+
+    for (const [key, value] of Object.entries(updates)) {
+      if (key !== 'research.pageCollection.resultsPerQuery') {
+        errors.push(`Unknown setting key: ${key}`);
+        continue;
+      }
+
+      if (
+        typeof value !== 'number' ||
+        !Number.isInteger(value) ||
+        value < 1 ||
+        value > 50
+      ) {
+        errors.push(
+          `Invalid value for ${key}: expected an integer between 1 and 50`,
+        );
+        continue;
+      }
+
+      next[key] = value;
+    }
+
+    if (errors.length > 0) {
+      return send(response, 400, {
+        statusCode: 400,
+        message: errors,
+        error: 'Bad Request',
+      });
+    }
+
+    Object.assign(SETTINGS, next);
+
+    return send(response, 200, settingsPayload());
   }
 
   if (method === 'GET' && path === '/products') {
