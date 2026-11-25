@@ -1,213 +1,208 @@
-# Harness — how to work in this repo
+# Harness — operational procedures
 
-Operational manual for humans and agents. If a command here fails, fix this file in the same
-change — an inaccurate harness is worse than none.
+Operational manual for this repository. Agent authority is defined only by
+[AGENTS.md](../../AGENTS.md); task assignment and status are authoritative only in
+[docs/tasks/README.md](../tasks/README.md). This document describes how to work, not what
+work is authorized.
 
-Related: [frontend conventions](frontend.md) · [ADR-002 Lite FSD](../decisions/ADR-002-frontend-lite-fsd.md)
-· [current task](../../ops/current.md) · [audit](../audits/frontend-2026-11-14.md)
-· [plan](../plans/frontend-action-plan-2026-11-14.md).
+SDR-002 is documentation-only. Command names and purposes below were checked against the
+current root and workspace `package.json` files by static inspection. **SDR-002 did not run
+these commands**, so this document does not claim that any command currently passes.
 
----
-
-## 1. Repo at a glance
+## 1. Repository at a glance
 
 ```text
 sdr-assistant/
-├── apps/api/            NestJS 11 + Fastify, Prisma 7, ESM (source of the research pipeline)
-├── apps/web/            Next.js 16 App Router + Tailwind 4 (all frontend work)
-├── docs/                audits, plans, decisions, system docs
-├── ops/                 current task + backlog
-├── docker-compose.yml   PostgreSQL 17 on localhost:5433
-├── AGENTS.md            agent rules (protected area, research flow)
-├── HANDOVER.md          what works, temporary state
-└── TODO.md              one active item, everything else in ops/backlog.md
+├── apps/api/                 NestJS 11 + Fastify, Prisma 7, ESM (research pipeline)
+├── apps/web/                 Next.js 16 App Router + Tailwind 4 (frontend)
+├── docs/
+│   ├── system/               harness, environment, research, frontend
+│   ├── decisions/            approved ADRs
+│   ├── tasks/                authoritative task registry and task records
+│   ├── audits/               read-only observations
+│   └── plans/                proposals, not execution authorization
+├── ops/                      legacy operational records (not task authority)
+├── docker-compose.yml        PostgreSQL 17 on host port 5433
+├── PRODUCT.md                approved product requirements
+├── README.md                 human-facing project overview
+├── AGENTS.md                 agent authority and execution restrictions
+├── TODO.md                   legacy record
+└── HANDOVER.md               legacy handover record
 ```
 
-All packages are ESM. Node >= 22 (verified on 24.20.0). npm workspaces: `apps/api`,
-`apps/web`.
+All workspaces are ESM. npm workspaces are `apps/api` and `apps/web`; the root scripts
+delegate to them. Node.js 22 or newer is required by `package.json`.
 
----
+## 2. Stack and workspace layout
 
-## 2. Setup
+| Area | Current stack |
+| --- | --- |
+| API | NestJS 11 on Fastify, TypeScript 5.9, NodeNext ESM, Prisma 7 with `@prisma/adapter-pg` |
+| Database | PostgreSQL 17 via Docker Compose; Prisma schema/migrations in `apps/api/prisma` |
+| Web | Next.js 16.4.5 App Router, React 19, Tailwind CSS 4, zod 4, TypeScript 5.9 |
+| Tests | Vitest for API and web; Playwright for web rendered scenarios |
+| Tooling | ESLint 10 + `eslint-config-next`, Prettier 3; web tooling is workspace-local |
+
+The API owns the research pipeline. The web app consumes it over HTTP only; the browser
+talks to same-origin `/api/*` route handlers because the API has no CORS.
+
+## 3. Setup
+
+Run setup commands only when the assigned task authorizes dependency installation,
+database changes or application startup.
 
 ```bash
 npm install
 docker compose up -d                      # PostgreSQL 17 on localhost:5433
-copy apps\api\.env.example apps\api\.env  # Windows; cp elsewhere
-npm run db:check                          # builds the API and verifies the DB connection
+copy apps\api\.env.example apps\api\.env  # Windows; cp on macOS/Linux
+npm run db:check                          # API build + database connectivity
 ```
 
-The web app reads `API_URL` (default `http://localhost:4000`) — see
-`apps/web/.env.example`. The API has no CORS: browser code may only call same-origin
-`/api/*` route handlers.
+- `npm install` installs workspace dependencies and runs the API `postinstall`
+  (`prisma generate`). This is a dependency installation and generated-code change.
+- `docker compose up -d` starts the database container; `npm run db:up` is the scripted
+  equivalent. This changes the local environment.
+- `copy`/`cp` creates local environment files. Do not commit secrets or real credentials.
+- `npm run db:check` builds the API and connects to PostgreSQL. It requires a running
+  database and produces build output.
 
----
+The web app reads `API_URL` (default `http://localhost:4000`); see
+`apps/web/.env.example`. The API reads its own environment from `apps/api/.env`; required
+provider keys are described in [research.md](research.md), not repeated here with values.
 
-## 3. Commands
+## 4. Command reference
 
-| Command | What it does | Verified |
+Command names are exactly those in `package.json`. “Authorization” means the task must
+explicitly permit the action; ordinary workspace access is not permission.
+
+### Root commands
+
+| Command | Purpose | Prerequisites | Side effects / authorization |
+| --- | --- | --- | --- |
+| `npm run dev` | Start API (4000) and web (3000) together | Dependencies, environment, database if API paths need it | Long-running servers; application startup. Requires task authorization and an environment that permits the dev servers. |
+| `npm run dev:api` / `npm run dev:web` | Start one side | As above | Same startup/authorization conditions. |
+| `npm run verify:web` | Frontend gate: typecheck, lint, unit tests, format check | Dependencies installed | Runs checks; does not start the app or paid APIs. This is the mandatory frontend gate when a task changes `apps/web`. |
+| `npm run e2e:web` | Playwright rendered scenarios against the mock API | Dependencies, Playwright browsers, a dev server it starts | Starts a mock API and isolated Next dev server; must not target the paid API. Mandatory for any task that changes rendered behavior; the approved proof must include it. If the approved proof omits it, report the conflict and stop — it is not optional. |
+| `npm run build` | API `prisma generate` + `tsc`, then web `next build` | Dependencies, database only if generation needs it | Generates/builds artifacts. Next build may need process-spawning permissions; requires explicit task authorization. Not a universal completion gate. |
+| `npm run db:up` / `npm run db:down` | Start/stop the PostgreSQL container | Docker | Environment change; requires task authorization. |
+| `npm run db:generate` | Generate Prisma Client | API dependencies | Writes generated code; requires authorization when the task permits it. |
+| `npm run db:migrate` | Create/apply a Prisma migration | Running database, schema change authorization | Database and migration changes; requires explicit authorization. |
+| `npm run db:check` | Build API + database connectivity check | Running database | Build output and a live database connection; authorization required. |
+
+### Workspace-level commands
+
+| Command | Purpose | Notes |
 | --- | --- | --- |
-| `npm run dev` | API (4000) + web (3000) together | not in this environment |
-| `npm run dev:api` / `npm run dev:web` | one side only | not in this environment |
-| `npm run verify:web` | `typecheck && lint && test && format:check` for `apps/web` | yes, exit 0 |
-| `npm run typecheck -w @sdr-assistant/web` | `next typegen && tsc --noEmit` | yes |
-| `npm run lint -w @sdr-assistant/web` | `eslint . --max-warnings=0` | yes |
-| `npm run test -w @sdr-assistant/web` | `vitest run` (HTTP, polling, theme, navigation, scroll, toast, formatting, settings) | yes, 65 |
-| `npm run test -w @sdr-assistant/api` | `vitest run` (settings registry and response mapper) | yes, 10 |
-| `npm run e2e -w @sdr-assistant/web` | Playwright against a mock API: 11 rendered-UI scenarios | yes, 11/11 in ~42 s |
-| `npm run format -w @sdr-assistant/web` | `prettier --write .` (web only) | yes |
-| `npm run build` | API `tsc` + `next build` | 13 routes; see §4.3 |
-| `npm run db:up` / `db:down` | PostgreSQL container | no |
-| `npm run db:migrate` | Prisma migrate dev | no |
-| `npm run db:generate` | Prisma client | no |
-| `npm run db:check` | build + DB connectivity check | no |
+| `npm run typecheck -w @sdr-assistant/web` | `next typegen && tsc --noEmit` | Part of `verify:web`; generates `.next/types` and `next-env.d.ts`. |
+| `npm run lint -w @sdr-assistant/web` | `eslint . --max-warnings=0` | Part of `verify:web`; web only. |
+| `npm run test -w @sdr-assistant/web` | Vitest web tests | Part of `verify:web`; jsdom/threads. |
+| `npm run format:check -w @sdr-assistant/web` | Prettier check, no writes | Part of `verify:web`. |
+| `npm run test -w @sdr-assistant/api` | Vitest API tests | Include in a proof only when the assigned task requires it; not a universal gate. |
+| `npm run e2e -w @sdr-assistant/web` / `npm run e2e:headed -w @sdr-assistant/web` | Playwright, optionally headed | Same mock-API boundary as `e2e:web`. |
+| `npm run format -w @sdr-assistant/web` | Prettier write, web only | Modifies files; run only with task authorization and keep it scoped to `apps/web`. |
+| `npm run dev -w @sdr-assistant/api` / `npm run dev -w @sdr-assistant/web` | One workspace dev server | Startup authorization as above. |
+| `npm run build -w @sdr-assistant/api` / `npm run build -w @sdr-assistant/web` | One workspace build | Same build/authorization caveats. |
+| `npm run start -w @sdr-assistant/api` / `npm run start -w @sdr-assistant/web` | Run a built app | Startup authorization; not a verification substitute. |
 
-`verify:web` is the gate for every frontend change. It deliberately does **not** run a
-production build or the E2E suite. Run `npm run e2e -w @sdr-assistant/web` for anything that
-changes rendered behaviour (layout, navigation, polling UI, toasts, theme).
+Never run a repo-wide formatter or linter. Formatters and linting are scoped to
+`apps/web`; `apps/api/src/modules/research` is a protected area.
 
-`verify:web` is the gate for every frontend change. It deliberately does **not** run a
-production build or the E2E suite. Run `npm run e2e -w @sdr-assistant/web` for anything that
-changes rendered behaviour (layout, navigation, polling UI, toasts, theme).
+## 5. Task execution workflow
 
----
+1. Read [AGENTS.md](../../AGENTS.md) and the assigned task document registered in
+   [docs/tasks/README.md](../tasks/README.md). Only an explicitly assigned task is active.
+2. Read the relevant system document before work: this harness, [research.md](research.md),
+   [frontend.md](frontend.md), [PRODUCT.md](../../PRODUCT.md), or an ADR.
+3. Inspect the current working tree and preserve all existing uncommitted changes. Treat
+   the working tree as the implementation baseline, not `HEAD`.
+4. Implement only the authorized paths in the task. Do not select additional work.
+5. Complete all substantive changes before the single proof command. Run exactly the proof
+   command the approved task specifies.
+6. Record the actual output and exit code, manually review changed/new files, and use the
+   completion report format in [AGENTS.md](../../AGENTS.md).
+7. Do not commit, push, reset, stash or clean unless the task explicitly authorizes it. Do
+   not start the next task.
 
-## 4. Windows / DSH sandbox caveats
+## 6. Verification
 
-These are verified facts in this environment, not guesses. They cost hours if rediscovered.
+- Exactly one proof command is defined by the approved task; execute only that command.
+- A proof command may invoke an existing script containing multiple checks.
+- Mandatory project-specific gates must be included in the approved task's proof command.
+  If the approved proof conflicts with a mandatory project requirement, report the conflict
+  and stop; do not independently add verification commands or weaken the requirement.
+- Necessary read-only repository inspection to understand or review a change is not an
+  additional proof command.
+- Do not add a universal build, API, GUI or live-research gate. Do not claim success
+  without recorded evidence.
 
-1. **Use `npm.cmd` / `npx.cmd` in PowerShell, not `npm` / `npx`.**
-   The `.ps1` shims spawn `node.exe` through a pipe and fail with
-   `Access to the path '\\.\pipe\LOCAL\...' is denied`. `npm.cmd` and `npx.cmd` work.
-2. **Never pipe a native executable's output into a PowerShell cmdlet.**
-   `git status | Select-Object …`, `node … | Select-Object …` and similar fail with the same
-   named-pipe error. Redirect to a file or let the tool capture the output.
-3. **`next build` needs the unrestricted sandbox.** Under `workspace-write` it compiles and
-   then dies at `Running TypeScript …` with `spawn EPERM` (exit 1) because it cannot fork its
-   workers. With `danger-full-access` the whole build completes — verified 2026-11-14: 11
-   routes, static and dynamic. `next typegen` and `tsc` work under both.
-4. **npm's default cache is outside the workspace** (`%LOCALAPPDATA%\npm-cache`) and is
-   blocked by the file sandbox. Installing from inside the sandbox needs a workspace-safe
-   cache, e.g. `npm.cmd install … --cache "$env:TEMP\npm-cache-sdr"`.
-5. **`next-env.d.ts` is generated and git-ignored.** It is written by `next typegen`,
-   `next dev` and `next build`, and it imports `.next/types/*`. Do not edit or commit it.
-6. **`tsc` without `.next/types` still exits 0** because `skipLibCheck` hides the missing
-   import, but route validation is then silently skipped. Always let `typecheck` run
-   `next typegen` first.
-7. **`next dev` / `next start` also need the unrestricted sandbox.** Under `workspace-write`
-   they fork a server process and die with `spawn EPERM`; with `danger-full-access` both work
-   (verified 2026-11-14). If `next dev` reports *"Another next dev server is already running"*,
-   that is the developer's own server on :3000 — use another port, never kill it.
-8. **Vitest must use the threads pool in the sandbox.** The default `forks` pool spawns child
-   processes and fails with `spawn EPERM`; `apps/web/vitest.config.ts` pins
-   `pool: 'threads'`, which works everywhere.
-9. **Use `localhost`, not `127.0.0.1`, for a Next dev server under test.** Next 16 blocks its
-   dev resources for a host name other than the one it advertises and hydration then fails
-   **silently** (the page renders but no handler works, no console error). The Playwright
-   config and `baseURL` therefore use `localhost`.
-10. **E2E runs get their own build directory.** `next.config.ts` reads `NEXT_DIST_DIR`
-    (`.next-e2e` under Playwright) so the suite can run while a normal `next dev` is open on
-    :3000. Never hard-kill a dev server mid-compile: a damaged `.next-e2e` makes every test
-    time out — delete the directory and rerun.
-11. **Never point E2E at the real API.** `POST /research` starts paid Exa/DeepSeek calls; the
-    suite always targets `e2e/mock-api.mjs`.
+### Frontend quality requirements
 
----
+Any task that changes `apps/web` must include the existing `npm run verify:web` gate in its
+approved proof command. A change to rendered behaviour must include the appropriate
+Playwright scenario in the approved proof. If the approved proof omits that mandatory gate,
+report the conflict and stop; do not treat the omission as permission to skip it. Preserve
+the rules in
+[frontend.md](frontend.md): no `any`, no unsafe wire casts, no `fetch(` outside
+`shared/api/**` and `app/api/**`, zod parsing for every payload, `Result` failures, and
+loading/empty/error/terminal states.
 
-## 5. Verification ladder and definition of done
+### Build and environment
 
-Run in this order; stop at the first failure.
+`npm run build` and the dev servers are not universal “done” steps. They require explicit
+task authorization and may need a broader environment; see [environment.md](environment.md).
+A build that could not run must be reported as not run, never described as passing.
 
-1. `npm run verify:web` — typecheck, lint, unit tests, formatting.
-2. `npm run e2e -w @sdr-assistant/web` — Playwright: shell, lists, product tabs, a full run
-   (queued → running → completed), a failed run, a poller that loses its job, 404, theme
-   switch + persistence, copy + toast, back-to-top. Add a scenario when you change behaviour.
-3. `npm run build --workspace @sdr-assistant/web` — must list the routes (currently 13:
-   the pages, `/_not-found`, `/icon.svg` and the `/api/research/[jobId]` handler). Needs
-   `danger-full-access` or a normal terminal, see §4.3.
-4. `npm run dev` — walk anything the automated suites cannot judge: visual design, keyboard
-   only, 360 px, and a real run against the paid API when the change touches it.
-5. `TODO.md` updated: one active item in "Now"; finished work moved to "Done" with evidence.
+## 7. Research artifact handling
 
-A task is done when all five hold. "It compiles" is not done.
+- `apps/api/src/modules/research/**` is protected. Do not modify it, including prompts,
+  tests, fixtures, schemas or formatting, without the explicit authorization described in
+  [AGENTS.md](../../AGENTS.md).
+- The current research implementation is frozen under
+  [AGENTS.md](../../AGENTS.md) (Research Implementation Freeze). Read-only inspection and
+  assigned documentation work are permitted; do not modify research code, prompts, schemas,
+  stages, tests or behavior. This reference is a concise reminder, not a replacement for
+  the binding freeze policy in `AGENTS.md`.
+- `apps/api/src/modules/research/temp/` and the stage-01 `temp/` directory hold raw dumps and
+  run artifacts; they are git-ignored. Do not commit them.
+- Current stage persistence and the normal-path result limitation are documented in
+  [research.md](research.md). Do not infer a stable result schema from an old dump.
+- Live research runs and provider calls consume credits. The default paid API budget is
+  zero unless a task explicitly authorizes the exact run or provider.
+- Fixture and replay code exists for tests/development but is not the current main path;
+  see [research.md](research.md) before using a dump as evidence.
 
-Frontend-specific bar (see [frontend.md](frontend.md)): no `any`, no `as` casts on wire
-data, no `fetch(` outside `shared/api` and the route handler, no unreachable UI branches.
+## 8. Documentation responsibilities
 
----
-
-## 6. Fixtures
-
-- Run dumps and raw pages live in `apps/api/src/modules/research/temp/` and are git-ignored.
-  Never commit them.
-- Stable names, one file per step, overwritten by every run:
-  - `identified-product-<slug>.json` and `identification-pages-<slug>.json` — 01's inputs when the
-    live path is replayed from files;
-  - `02.1-merged-pages.json` — the merged page list 02 triages (also the input when 02's search
-    step is replayed);
-  - `02.2-tirage.json` — the per-page verdicts with reasons;
-  - `02.3-page-collection-response.json` — the `good` pages handed to 03;
-  - `04-companies-<timestamp>.json` — 03's company profiles.
-- Replay mode is not flagged anywhere in the API: if a stage reads a dump, the run still reports
-  `COMPLETED`. Check the service before trusting a run's coverage.
-- `01-product-identification` also has an older fixture path under
-  `stages/01-product-identification/temp/`; it stays git-ignored for the same reason.
-
----
-
-## 7. Protected area and stop rules
-
-**Frozen:** `apps/api/src/modules/research/**`. Do not modify it — not even formatting,
-imports or a comment — without an explicit, specific request from the user. The user is
-actively editing that module.
-
-Stop and ask before:
-
-1. touching anything in the protected area;
-2. adding, upgrading or removing a dependency;
-3. changing a wire contract (field name, type, status value, error envelope);
-4. running a formatter or linter outside `apps/web` (`.prettierignore` protects `apps/api`,
-   but do not rely on it — scope the command);
-5. deleting the research form on `products/[id]` — it is still the only way to start a run;
-6. claiming work is done when `next build` could not run (say so explicitly instead).
-
-Do not "fix" an API-side problem from the web app. Record it in `ops/backlog.md` §Backend
-and tolerate the current behaviour.
-
----
-
-## 8. Task workflow
-
-1. Pick the task from `ops/current.md` (it mirrors `TODO.md` "Now"). One task at a time.
-2. Read [frontend.md](frontend.md) before touching `apps/web`, and the relevant Next.js guide
-   in `node_modules/next/dist/docs/` before using a Next API — this Next version differs from
-   older knowledge and `next lint` no longer exists.
-3. Implement in small commits; run `npm run verify:web` before each.
-4. Update `ops/current.md`, `TODO.md`, and `ops/backlog.md` when the state changes.
-5. When a decision is not obvious and will outlive the task, write an ADR in `docs/decisions/`.
-
----
-
-## 9. Document map
-
-| Document | Purpose |
+| Document | Responsibility |
 | --- | --- |
-| `AGENTS.md` | Hard rules for agents: protected area, research semantics |
-| `docs/system/harness.md` | This file: commands, caveats, done |
-| `docs/system/frontend.md` | Frontend architecture and conventions |
-| `docs/decisions/ADR-001-research-pipeline.md` | Research pipeline (draft, owned by the research workstream) |
-| `docs/decisions/ADR-002-frontend-lite-fsd.md` | Frontend layering decision |
-| `docs/audits/frontend-2026-11-14.md` | Read-only audit: facts, problems, evidence |
-| `docs/plans/frontend-action-plan-2026-11-14.md` | Ordered phases with acceptance criteria |
-| `ops/current.md` | Exactly one active task |
-| `ops/backlog.md` | Everything not scheduled |
+| [AGENTS.md](../../AGENTS.md) | Agent authority, execution restrictions, protected area and completion rules |
+| [PRODUCT.md](../../PRODUCT.md) | Approved product requirements and acceptance criteria |
+| [README.md](../../README.md) | Human-facing project overview and entry points |
+| `docs/system/harness.md` | This operational manual: commands, workflow, verification |
+| [docs/system/environment.md](environment.md) | Environment observations and approved solutions |
+| [docs/system/research.md](research.md) | Actual research implementation, integration status and known discrepancies |
+| [docs/system/frontend.md](frontend.md) | Approved frontend conventions and constraints |
+| [docs/decisions/](../decisions/) | Approved architectural decisions (ADR-001 is draft, ADR-002 accepted) |
+| [docs/tasks/README.md](../tasks/README.md) | Authoritative task registry |
+| Task documents under `docs/tasks/` | Approved task scope, acceptance criteria and execution evidence |
+| [docs/audits/](../audits/) and [docs/plans/](../plans/) | Observations and proposals, not execution authorization |
 
----
+No subordinate document may grant authority prohibited by [AGENTS.md](../../AGENTS.md). If
+the implementation contradicts `PRODUCT.md`, document the discrepancy in
+[research.md](research.md) rather than changing either silently.
 
-## 10. Known gaps
+## 9. Environment notes
 
-- Unit tests cover the HTTP failure model, polling, navigation, theme, scroll, toasts,
-  formatting and the settings registry/form; Playwright covers 11 rendered scenarios. Visual
-  design, keyboard-only and 360 px still need a human pass.
-- No CI workflow yet (plan 0.9 is optional and unverified here).
-- No lint rule for layer boundaries yet (Phase 4).
+Use the standard `workspace-write` sandbox. Do not escalate privileges or switch to a less
+restrictive mode without explicit human authorization, even for read-only commands.
+Windows, PowerShell, DSH and historical Next.js/npm caveats live in
+[environment.md](environment.md); this harness does not duplicate them.
+
+## 10. Current limitations
+
+- This manual was reconciled by static inspection during SDR-002; it was not produced by a
+  fresh run of the commands.
+- Known implementation/documentation discrepancies, including the normal-path research
+  result, are recorded in [research.md](research.md).
+- SDR-002 did not change application behavior, dependencies, database state, environment
+  settings or sandbox permissions.

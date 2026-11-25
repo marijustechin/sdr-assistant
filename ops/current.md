@@ -1,5 +1,10 @@
 # Current task — 2026-11-17
 
+> **Historical record — not an active task authority.** This file describes work from
+> 2026-11-17 and is preserved as history. It does not assign work or authorize changes.
+> See the authoritative [task registry](../docs/tasks/README.md),
+> [harness](../docs/system/harness.md) and [research implementation](../docs/system/research.md).
+
 **Task:** settings foundation — API module, one real setting, `/settings` pages
 **Scope:** new `apps/api/src/modules/settings`, Prisma `Setting` model + one migration, new web
 `entities/settings` / `features/update-settings` / `_pages/settings*`, app shell navigation.

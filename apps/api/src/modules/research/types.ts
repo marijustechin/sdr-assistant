@@ -8,6 +8,12 @@ export type DeepSeekResponse = {
     };
     finish_reason: string | null;
   }>;
+  /** Present on OpenAI-compatible providers; null-safe because it is optional. */
+  usage?: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    total_tokens?: number;
+  };
 };
 
 export type LLMConfig = {

@@ -122,3 +122,24 @@ export function buildPageFactsSchema(traitNames: readonly string[]) {
 
 export type PageTraitFact = z.infer<typeof pageTraitFactSchema>;
 export type PageFacts = z.infer<ReturnType<typeof buildPageFactsSchema>>;
+
+export const studyCriteriaSchema = z.object({
+  language: z.string().trim().min(1),
+  traits: z.array(z.object({
+    name: z.string().regex(/^[a-z][a-z0-9_]*$/),
+    expected: z.string().trim().min(1),
+  })).min(1).refine(
+    (traits) => new Set(traits.map(({ name }) => name)).size === traits.length,
+    'Each trait must have a unique name',
+  ),
+});
+
+export type StudyCriteria = z.infer<typeof studyCriteriaSchema>;
+
+export function buildPageFactsV4Schema(traitNames: readonly string[]) {
+  return buildPageFactsSchema(traitNames).extend({
+    offerLanguage: z.enum(['target', 'other', 'unknown']),
+  });
+}
+
+export type PageFactsV4 = z.infer<ReturnType<typeof buildPageFactsV4Schema>>;

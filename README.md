@@ -1,78 +1,73 @@
 # sdr-assistant
 
-Monorepo with a **NestJS (Fastify)** API and a **Next.js** web app, backed by
-**PostgreSQL** through **Prisma ORM 7**. Everything is **ESM-only**.
+SDR Assistant researches one product in one target market: it identifies the product and
+its local category, collects candidate pages, assesses each page, and builds company
+profiles from the resulting offers. Runs are asynchronous: the web client starts a job and
+polls its status.
 
-The app researches one product in one market: stage 01 identifies the product and
-collects candidate pages, stage 02 discovers companies. Runs are asynchronous — the web
-client starts a job and polls it.
+This is a documentation-first, ESM monorepo with a NestJS/Fastify API and a Next.js web
+app. The approved product requirements are in [PRODUCT.md](PRODUCT.md); the actual
+four-stage implementation and its known discrepancies are in
+[docs/system/research.md](docs/system/research.md).
 
 ## Stack
 
-| Layer    | Choice                                                        |
-| -------- | ------------------------------------------------------------- |
-| API      | NestJS 11 on Fastify, ESM (`"type": "module"`, NodeNext)       |
-| Database | PostgreSQL 17 (Docker Compose) + Prisma ORM 7 (`@prisma/adapter-pg`) |
-| Web      | Next.js 16 (App Router, Turbopack) + Tailwind CSS 4 + zod 4    |
-| Tooling  | ESLint 10 (`eslint-config-next`) + Prettier 3, scoped to `apps/web` |
-| Runtime  | Node.js >= 22 (tested on Node 24)                             |
+| Layer | Choice |
+| --- | --- |
+| API | NestJS 11 on Fastify, TypeScript 5.9, NodeNext ESM |
+| Database | PostgreSQL 17 (Docker Compose) + Prisma 7 with `@prisma/adapter-pg` |
+| Web | Next.js 16.4.5 App Router, React 19, Tailwind CSS 4, zod 4 |
+| Tests | Vitest (API and web), Playwright (web rendered scenarios) |
+| Tooling | ESLint 10 + `eslint-config-next`, Prettier 3; web tooling is workspace-local |
+| Runtime | Node.js >= 22; npm workspaces `apps/api`, `apps/web` |
 
 ## Layout
 
 ```text
 .
-├── docker-compose.yml        # PostgreSQL 17 on localhost:5433
 ├── apps/
-│   ├── api/                  # NestJS + Fastify + Prisma
-│   │   ├── prisma/schema.prisma
-│   │   ├── prisma.config.ts  # Prisma CLI config (schema, migrations, datasource URL)
-│   │   └── src/
-│   │       ├── main.ts
-│   │       ├── app.module.ts
-│   │       ├── modules/health/     # GET /health
-│   │       ├── modules/products/   # /products (create, list, get, update)
-│   │       ├── modules/research/   # /research (start job, list, get) + pipeline stages
-│   │       ├── modules/prisma/     # PrismaService / PrismaModule
-│   │       └── scripts/            # check-db.ts
-│   └── web/                  # Next.js
-│       ├── app/              # routes, the polling proxy, globals.css
-│       │   ├── api/research/[jobId]/route.ts   # same-origin proxy for the poller
-│       │   ├── products/     # list, new, [id] (+ research form), [id]/edit
-│       │   ├── researches/   # job list, [jobId] detail
-│       │   └── health/
-│       ├── _pages/           # FSD pages layer (not routable): research, researches
-│       ├── entities/research/# api + model (zod schemas, types)
-│       └── lib/              # api base URL, products, countries
-├── docs/                     # system docs, decisions, audits, plans
-├── ops/                      # current task + backlog
-└── package.json              # npm workspaces + root scripts
+│   ├── api/                  NestJS + Fastify + Prisma; research pipeline
+│   │   ├── prisma/           schema and migrations
+│   │   └── src/modules/      health, products, research, settings, prisma
+│   └── web/                  Next.js App Router
+│       ├── app/              routes, polling proxy, styles
+│       ├── _pages/           non-routable page compositions
+│       ├── entities/         research and settings data layers
+│       ├── features/         user actions (track-research, update-settings)
+│       ├── widgets/          app shell
+│       └── shared/           HTTP, config, formatting, UI primitives
+├── docs/
+│   ├── system/               harness, environment, research, frontend
+│   ├── decisions/            ADR-001 (draft) and ADR-002 (accepted)
+│   ├── tasks/                authoritative task registry and task records
+│   ├── audits/               read-only observations
+│   └── plans/                proposals, not execution authorization
+├── ops/                      legacy operational records (not task authority)
+├── PRODUCT.md                approved product requirements
+├── AGENTS.md                 agent authority and execution restrictions
+├── docker-compose.yml        PostgreSQL 17 on host port 5433
+├── TODO.md                   legacy record
+└── HANDOVER.md               legacy handover record
 ```
-
-Frontend conventions: [docs/system/frontend.md](docs/system/frontend.md).
-Operating manual: [docs/system/harness.md](docs/system/harness.md).
 
 ## Prerequisites
 
 - Node.js 22 or newer
-- Docker (for PostgreSQL) — or any PostgreSQL server
+- Docker (or another PostgreSQL 17 server)
 
 ## Setup
 
 ```bash
 npm install
-docker compose up -d          # starts PostgreSQL on localhost:5433
-copy apps/api\.env.example apps/api\.env   # Windows (macOS/Linux: cp)
-npm run db:check              # builds the API and verifies the DB connection
+docker compose up -d                      # PostgreSQL on localhost:5433
+copy apps\api\.env.example apps\api\.env  # Windows; cp on macOS/Linux
+npm run db:check                          # API build + database connectivity
 ```
 
-`npm install` runs `prisma generate` for the API workspace (the generated
-client is written to `apps/api/src/generated/prisma` and is git-ignored).
-
-Set `DEEPSEEK_API_KEY` (and the Exa/DeepSeek search keys) in `apps/api/.env` to run the
-research pipeline.
-
-> Port `5433` is used on the host to avoid clashing with an existing PostgreSQL
-> on `5432`. Change `docker-compose.yml` and `DATABASE_URL` together if needed.
+`npm install` installs dependencies and runs the API `postinstall` (`prisma generate`).
+`db:check` requires a running database. See
+[docs/system/harness.md](docs/system/harness.md) for prerequisites, side effects and the
+authorization required for dependency, database, build and startup commands.
 
 ## Run
 
@@ -80,130 +75,80 @@ research pipeline.
 npm run dev        # API on http://localhost:4000, web on http://localhost:3000
 ```
 
-or run each app separately:
-
-```bash
-npm run dev:api
-npm run dev:web
-```
+Or run one side: `npm run dev:api` / `npm run dev:web`.
 
 ### API endpoints
 
 | Endpoint | Result |
 | --- | --- |
 | `GET /health` | `200` with `{"status":"ok"}` |
-| `GET /products` | List products (newest first) |
-| `GET /products/:id` | One product, or `404` |
-| `POST /products` | Create a product (`name`, `description`) |
-| `PATCH /products/:id` | Update a product (`name`, `description`) |
-| `POST /research` | `202` with `{ jobId, status }`; starts an async run for `name`, `description`, `country`, `productId` |
-| `GET /research` | List research jobs |
-| `GET /research/:jobId` | One job: `status`, `stage`, `result`, `error` |
-| `GET /settings` | Registered settings, grouped, with metadata and effective values |
-| `PATCH /settings` | Upsert `{ updates }`; unknown key or invalid value → `400` naming the key |
+| `GET /products` / `GET /products/:id` | List or one product |
+| `POST /products` / `PATCH /products/:id` | Create/update a product |
+| `POST /research` | `202 { jobId, status }`; starts a run for `name`, `description`, `country`, `productId` |
+| `POST /research/:jobId/resume` | `202`; resumes a stopped stage-03/04 run |
+| `GET /research` | Research jobs |
+| `GET /research/:jobId` | Job status, stage, result and error |
+| `GET /settings` / `PATCH /settings` | Settings registry and validated updates |
 
-Settings are validated by the typed registry in `apps/api/src/modules/settings/settings.registry.ts`.
-Precedence is code default, then the value stored in `settings`; no env or per-run overrides yet.
-
-### Web routes
-
-| Route | Result |
-| --- | --- |
-| `/` | Home with links |
-| `/health` | API health, fetched live |
-| `/products` | Product list |
-| `/products/new` | Create-product form |
-| `/products/:id` | Product detail + "Start research" form |
-| `/products/:id/edit` | Edit-product form |
-| `/researches` | Research job list |
-| `/researches/:jobId` | Job detail; polls while `QUEUED`/`RUNNING` |
-| `/settings` | Settings hub |
-| `/settings/research` | Research settings, generated from `GET /settings` |
-| `/api/research/:jobId` | Same-origin proxy used by the poller (the API has no CORS) |
-
-The web app reads the API base URL from `API_URL` (default `http://localhost:4000`) — see
-`apps/web/.env.example`. Writes go through Next.js server actions, so the API does not need
-CORS; the browser only talks to same-origin route handlers.
+The web app reads `API_URL` (default `http://localhost:4000`). The API has no CORS;
+browser requests go through same-origin Next.js route handlers.
 
 ### Research flow
 
-1. `POST /research` validates the payload, creates a `Research` row (`QUEUED`) and returns
-   `202 { jobId, status }`. While a run for the same product + country is `QUEUED`/`RUNNING`,
-   the existing job id is returned instead of starting a second one.
-2. The API starts the pipeline in-process and updates `status`, `stage` and finally `result`
-   or `error`.
-3. The detail page renders the server-side job and polls `GET /api/research/:jobId` every two
-   seconds while it is `QUEUED`/`RUNNING`. Polling backs off on transport errors, stops on
-   4xx and at a terminal status, and renders the result from the same job object — no second
-   request is needed to show the output.
+1. **01 product identification** — generate local product/category terms, search Exa and
+   DeepSeek Search, prepare pages, and identify the local product and category names.
+2. **02 page collection** — generate additional queries, search both providers, merge
+   pages, and fetch missing text.
+3. **03 page assessment** — derive study criteria once, assess every page, and produce
+   `a`/`b`/`none` decisions with offer facts.
+4. **04 company profiling** — profile each selected domain with Firecrawl homepage/contact
+   pages and DeepSeek calls; build company, offer, market, price and contact records.
 
-During stage-02 development the live stage-01 call is commented out in `ResearchService` and
-the service reads the local `abachi-lt` identification fixture. Fixtures are git-ignored — see
-[docs/system/harness.md](docs/system/harness.md) §6.
-
-### Product API
-
-```bash
-curl -X POST http://localhost:4000/products \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Analytics Suite","description":"Product analytics for SDR teams"}'
-```
-
-Validation (via `class-validator`): `name` is required, max 200 chars;
-`description` is optional, max 2000 chars. `possibleSearchTerms` is an optional array of up to
-50 strings (100 chars each) and is accepted by the API, but no current form sends it. Unknown
-fields are rejected.
+All four stages are connected in the current service. The normal completion path currently
+stores a result without the company profiles, while the resume path stores `companies`;
+see [research.md](docs/system/research.md) for the exact status and API implications. Do
+not treat old fixture/replay or 02-company-discovery descriptions as current.
 
 ## Verification
 
 ```bash
-npm run verify:web     # typegen + tsc + eslint --max-warnings=0 + vitest + prettier --check
-npm run e2e:web        # Playwright: 11 rendered scenarios against a mock API
-npm run build          # API tsc + next build
+npm run verify:web     # frontend gate: typecheck + lint + tests + format check
+npm run e2e:web        # Playwright rendered scenarios against the mock API
+npm run build          # API build + Next build; requires explicit authorization
 ```
 
-`verify:web` is the gate for every frontend change; run `npm run e2e:web` for anything that
-changes rendered behaviour. The E2E suite starts its own mock API and its own dev server, so it
-never calls the paid research APIs and can run next to a normal `npm run dev`. `npm run build`
-needs an unrestricted environment — in the restricted DSH sandbox it compiles and then fails
-with `spawn EPERM` (see [harness §4](docs/system/harness.md)); with full access it completes
-and lists the routes.
+`verify:web` is the mandatory gate for a frontend change. Include `e2e:web` in a task's
+approved proof when the change affects rendered behavior. `build` and the dev servers need
+explicit task authorization and may need a broader environment; they are not universal
+“done” requirements. No command in this README was executed during SDR-002.
 
 ## Scripts
 
 | Command | Description |
 | --- | --- |
-| `npm run dev` | Run API and web together |
-| `npm run dev:api` / `npm run dev:web` | Run one side |
-| `npm run verify:web` | Typecheck, lint, test and format-check `apps/web` |
-| `npm run build` | Build API (`tsc`) and web (`next build`) |
-| `npm run db:up` | Start PostgreSQL container |
-| `npm run db:down` | Stop PostgreSQL container |
+| `npm run dev` / `dev:api` / `dev:web` | Run the app(s) |
+| `npm run verify:web` | Frontend typecheck, lint, tests and format check |
+| `npm run e2e:web` | Playwright against the mock API |
+| `npm run build` | Build API and web |
+| `npm run db:up` / `db:down` | PostgreSQL container |
 | `npm run db:generate` | Generate Prisma Client |
-| `npm run db:migrate` | Create/apply a Prisma migration |
-| `npm run db:check` | Verify the PostgreSQL connection via Prisma |
+| `npm run db:migrate` | Prisma migration |
+| `npm run db:check` | Build API + database connectivity |
 
-Frontend-only scripts live in `apps/web/package.json` (`typecheck`, `lint`, `format`,
-`format:check`) and are workspace-local on purpose: `apps/api` is owned by another workstream
-and must not be reformatted.
+Workspace scripts (`typecheck`, `lint`, `test`, `format`, `format:check`, `e2e`) live in
+`apps/web/package.json`; the API has its own `test` and database scripts. See
+[harness.md](docs/system/harness.md) for the full command/prerequisite table.
 
-## Prisma 7 notes
+## Documentation
 
-- `prisma.config.ts` is the source of truth for the CLI: schema location,
-  migrations path and the datasource URL (`env("DATABASE_URL")`).
-  Prisma 7 no longer auto-loads `.env`, so the config imports `dotenv/config`.
-- The `datasource` block in `schema.prisma` contains only the provider.
-- The generated client uses the new `prisma-client` generator with an explicit
-  `output` (`src/generated/prisma`) and ESM imports (`.js` extensions).
-- At runtime, `PrismaClient` is constructed with the `PrismaPg` driver adapter
-  (the Rust query engine is gone in Prisma 7).
-- Add models to `apps/api/prisma/schema.prisma`, then run
-  `npm run db:migrate` and `npm run db:generate`.
+- [PRODUCT.md](PRODUCT.md) — approved product requirements.
+- [AGENTS.md](AGENTS.md) — agent authority and execution restrictions.
+- [docs/system/harness.md](docs/system/harness.md) — operational workflow and commands.
+- [docs/system/research.md](docs/system/research.md) — actual research implementation and
+  known limitations.
+- [docs/system/frontend.md](docs/system/frontend.md) — frontend conventions.
+- [docs/system/environment.md](docs/system/environment.md) — environment observations.
+- [docs/tasks/README.md](docs/tasks/README.md) — authoritative task registry.
 
-## ESM notes
-
-- Root and workspace `package.json` files set `"type": "module"`.
-- The API compiles with `module`/`moduleResolution: NodeNext` and imports local
-  files with explicit `.js` extensions.
-- The API dev script runs `tsc --watch` alongside `node --watch dist/main.js`,
-  so no CommonJS bundler or `ts-node` is involved.
+`ops/current.md`, `ops/backlog.md`, `TODO.md` and `HANDOVER.md` are historical records, not
+execution authorization or authoritative status. See the task registry for current work.

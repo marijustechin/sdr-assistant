@@ -1,5 +1,10 @@
 # Handover
 
+> **Historical handover — not current implementation authority.** This file records what
+> was observed on earlier dates. Current implementation is documented in
+> [docs/system/research.md](docs/system/research.md); current work is tracked in the
+> [task registry](docs/tasks/README.md).
+
 ## 2026-11-17 — settings foundation
 
 - New `apps/api/src/modules/settings`: typed registry (zod schema, default, label, description,

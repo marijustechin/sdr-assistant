@@ -1,9 +1,12 @@
 import {
+  BadRequestException,
+  ConflictException,
   Injectable,
   Logger,
   NotFoundException,
   type OnModuleInit,
 } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
 
 import countries from 'i18n-iso-countries';
 
@@ -13,10 +16,13 @@ import type { CreateResearchDto } from './dto/create-research.dto.js';
 import { ProductIdentificationService } from './stages/01-product-identification/product-identification.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { PageCollectionService } from './stages/02-page-collection/page-collection.service.js';
-import { CompanyDiscoveryService } from './stages/04-company-discovery/company-discovery.service.js';
 import { SettingsService } from '../settings/settings.service.js';
 import { PageAssessmentService } from './stages/03-page-assessment/page-assessment.service.js';
+import { PAGE_ASSESSMENT_PROMPT_VERSION } from './stages/03-page-assessment/page-assessment.prompt.js';
 import { languageByCountry } from './lib/utils.js';
+import { CompanyProfilingService } from './stages/04-company-profiling/company-profiling.service.js';
+import { PageForAssessment } from './types.js';
+import { IdentifiedProduct } from './stages/01-product-identification/product-identification.schema.js';
 
 /**
  * How long a run may go without any stage update before it is considered dead.
@@ -27,6 +33,7 @@ import { languageByCountry } from './lib/utils.js';
  * the duplicate check in `start()`.
  */
 const STALE_RUN_MS = 5 * 60 * 1000;
+const EXECUTION_LEASE_MS = 5 * 60 * 1000;
 
 @Injectable()
 export class ResearchService implements OnModuleInit {
@@ -34,7 +41,7 @@ export class ResearchService implements OnModuleInit {
     private readonly productIdentificationService: ProductIdentificationService,
     private readonly pageCollectionService: PageCollectionService,
     private readonly pageAssessmentService: PageAssessmentService,
-    private readonly companyDiscoveryService: CompanyDiscoveryService,
+    private readonly companyProfilingService: CompanyProfilingService,
     private readonly prismaService: PrismaService,
     private readonly settingsService: SettingsService,
   ) {}
@@ -102,6 +109,8 @@ export class ResearchService implements OnModuleInit {
   }
 
   async getById(jobId: string) {
+    await this.failStaleRuns();
+
     const job = await this.prismaService.research.findUnique({
       where: {
         id: jobId,
@@ -110,12 +119,27 @@ export class ResearchService implements OnModuleInit {
 
     if (!job) throw new NotFoundException('Job not found');
 
-    return job;
+    const {
+      executionToken: _executionToken,
+      executionLeaseUntil: _executionLeaseUntil,
+      ...safeJob
+    } = job;
+
+    return safeJob;
   }
 
   async getAll() {
+    await this.failStaleRuns();
+
     const researches = await this.prismaService.research.findMany();
-    return researches;
+
+    return researches.map(
+      ({
+        executionToken: _executionToken,
+        executionLeaseUntil: _executionLeaseUntil,
+        ...safeJob
+      }) => safeJob,
+    );
   }
 
   /**
@@ -140,6 +164,8 @@ export class ResearchService implements OnModuleInit {
           status: 'INTERRUPTED',
           stage: null,
           error: 'Interrupted: no progress for 5 minutes',
+          executionToken: null,
+          executionLeaseUntil: null,
         },
       });
 
@@ -164,6 +190,8 @@ export class ResearchService implements OnModuleInit {
     jobId: string,
     dto: CreateResearchDto,
   ): Promise<void> {
+    const executionToken = randomUUID();
+
     try {
       const resultsPerQuery = await this.settingsService.getNumber(
         'research.pageCollection.resultsPerQuery',
@@ -174,14 +202,26 @@ export class ResearchService implements OnModuleInit {
           status: 'RUNNING',
           stage: 'product-identification',
           lastHeartbeatAt: new Date(),
+          executionToken,
+          executionLeaseUntil: new Date(Date.now() + EXECUTION_LEASE_MS),
         },
       });
 
       const updateStage = async (stage: string): Promise<void> => {
-        await this.prismaService.research.update({
-          where: { id: jobId },
-          data: { stage, lastHeartbeatAt: new Date() },
+        const { count } = await this.prismaService.research.updateMany({
+          where: { id: jobId, executionToken },
+          data: {
+            stage,
+            lastHeartbeatAt: new Date(),
+            executionLeaseUntil: new Date(Date.now() + EXECUTION_LEASE_MS),
+          },
         });
+
+        if (count !== 1) {
+          throw new Error(
+            `Execution lease lost for job ${jobId}; this process must stop.`,
+          );
+        }
       };
 
       // Research variables
@@ -197,14 +237,16 @@ export class ResearchService implements OnModuleInit {
         await this.productIdentificationService.identify(
           dto,
           targetLanguage,
+          jobId,
           updateStage,
         );
 
-      // 02. Page collection ///////////////////////////////////////////////
+      // 02. Page collection
       const collectedPages = await this.pageCollectionService.collect(
         dto,
         identifiedProduct,
         targetLanguage,
+        jobId,
         updateStage,
         resultsPerQuery,
       );
@@ -222,37 +264,235 @@ export class ResearchService implements OnModuleInit {
           },
           pages: collectedPages,
         },
+        jobId,
+        updateStage,
+        executionToken,
+      );
+
+      // 04. Company profiling
+      const profiledCompanies = await this.companyProfilingService.profile(
+        assessedPages,
         updateStage,
       );
 
-      // 03. Company discovery
-      // const companies = await this.companyDiscoveryService.discover(
-      //   {
-      //     targetCountry: dto.country,
-      //     product: identifiedProduct.product,
-      //     pages: collectedPages,
-      //   },
-      //   updateStage,
-      // );
-
-      await this.prismaService.research.update({
-        where: { id: jobId },
+      const completed = await this.prismaService.research.updateMany({
+        where: { id: jobId, executionToken },
         data: {
           status: 'COMPLETED',
           stage: null,
+          executionToken: null,
+          executionLeaseUntil: null,
           result: asJson({
-            completedThrough: '02-page-collection',
+            completedThrough: '04-company-profiling',
             resultsPerQuery,
-            identificationPageCount: identifiedProduct.sourcePages.length,
-            selectedPageCount: collectedPages.length,
           }),
         },
       });
+
+      if (completed.count !== 1) {
+        throw new Error(
+          `Execution lease lost for job ${jobId}; this process must stop.`,
+        );
+      }
     } catch (error) {
-      await this.prismaService.research.update({
-        where: { id: jobId },
+      await this.prismaService.research.updateMany({
+        where: { id: jobId, executionToken },
         data: {
           status: 'FAILED',
+          stage: null,
+          executionToken: null,
+          executionLeaseUntil: null,
+          error: error instanceof Error ? error.message : String(error),
+        },
+      });
+    }
+  }
+
+  /**
+   * Resumes a stopped stage 03 without re-running 01/02 or regenerating criteria.
+   *
+   * The execution lease is claimed atomically. A second click (or a second API
+   * process) gets 409 until the lease expires; the old process loses its lease
+   * and its next stage/checkpoint write is rejected.
+   */
+  async resume(jobId: string) {
+    const research = await this.prismaService.research.findUnique({
+      where: { id: jobId },
+      include: {
+        product: true,
+        stage01Result: true,
+        stage02Result: true,
+        stage03Result: true,
+      },
+    });
+
+    if (!research) throw new NotFoundException('Job not found');
+
+    if (research.status === 'COMPLETED') {
+      throw new ConflictException('Research is already completed');
+    }
+
+    if (!research.stage01Result || !research.stage02Result) {
+      throw new BadRequestException(
+        'Cannot resume: stage 01 or stage 02 result is missing',
+      );
+    }
+
+    if (
+      !research.stage03Result?.criteria ||
+      !research.stage03Result.promptVersion
+    ) {
+      throw new BadRequestException(
+        'Cannot resume: stage 03 criteria or prompt version is missing',
+      );
+    }
+
+    if (
+      research.stage03Result.promptVersion !== PAGE_ASSESSMENT_PROMPT_VERSION
+    ) {
+      throw new BadRequestException(
+        `Cannot resume: stage 03 prompt version "${research.stage03Result.promptVersion}" is not executable; current version is "${PAGE_ASSESSMENT_PROMPT_VERSION}"`,
+      );
+    }
+
+    if (!Array.isArray(research.stage02Result.result)) {
+      throw new BadRequestException(
+        'Cannot resume: stage 02 result is not a page list',
+      );
+    }
+
+    const countryCode = countries.getAlpha2Code(research.country, 'en') ?? 'xx';
+    const targetLanguage = languageByCountry[countryCode.toUpperCase()];
+
+    if (!targetLanguage) {
+      throw new BadRequestException(
+        `Cannot resume: target language is not configured for ${research.country}`,
+      );
+    }
+
+    const identifiedProduct = research.stage01Result
+      .identifiedProduct as unknown as IdentifiedProduct;
+
+    const data = {
+      targetCountry: research.country,
+      targetLanguage,
+      product: {
+        productName: identifiedProduct.productName,
+        categoryName: identifiedProduct.categoryName,
+        generalCategoryName: identifiedProduct.generalCategoryName,
+        description: research.product.description,
+      },
+      pages: research.stage02Result.result as unknown as PageForAssessment[],
+    };
+
+    const executionToken = randomUUID();
+    const now = new Date();
+    const claimed = await this.prismaService.research.updateMany({
+      where: {
+        id: jobId,
+        status: { not: 'COMPLETED' },
+        OR: [
+          { executionLeaseUntil: null },
+          { executionLeaseUntil: { lt: now } },
+        ],
+      },
+      data: {
+        status: 'RUNNING',
+        stage: '03.1 Resuming assessment...',
+        lastHeartbeatAt: now,
+        executionToken,
+        executionLeaseUntil: new Date(now.getTime() + EXECUTION_LEASE_MS),
+        error: null,
+      },
+    });
+
+    if (claimed.count !== 1) {
+      throw new ConflictException(
+        'Research is already running in another executor',
+      );
+    }
+
+    void this.runResume(jobId, executionToken, data).catch((error: unknown) => {
+      this.logger.error(error instanceof Error ? error.stack : String(error));
+    });
+
+    return { jobId, status: 'RUNNING' as const };
+  }
+
+  private async runResume(
+    jobId: string,
+    executionToken: string,
+    data: {
+      targetCountry: string;
+      targetLanguage: string;
+      product: {
+        productName: string;
+        categoryName: string;
+        generalCategoryName: string;
+        description: string;
+      };
+      pages: PageForAssessment[];
+    },
+  ): Promise<void> {
+    const updateStage = async (stage: string): Promise<void> => {
+      const { count } = await this.prismaService.research.updateMany({
+        where: { id: jobId, executionToken },
+        data: {
+          stage,
+          lastHeartbeatAt: new Date(),
+          executionLeaseUntil: new Date(Date.now() + EXECUTION_LEASE_MS),
+        },
+      });
+
+      if (count !== 1) {
+        throw new Error(
+          `Execution lease lost for job ${jobId}; this process must stop.`,
+        );
+      }
+    };
+
+    try {
+      await updateStage('03.1 Resuming assessment...');
+
+      const assessedPages = await this.pageAssessmentService.resumePages(
+        data,
+        jobId,
+        updateStage,
+        executionToken,
+      );
+
+      const profiledCompanies = await this.companyProfilingService.profile(
+        assessedPages,
+        updateStage,
+      );
+
+      const completed = await this.prismaService.research.updateMany({
+        where: { id: jobId, executionToken },
+        data: {
+          status: 'COMPLETED',
+          stage: null,
+          executionToken: null,
+          executionLeaseUntil: null,
+          result: asJson({
+            completedThrough: '04-company-profiling',
+            companies: profiledCompanies.domains,
+          }),
+        },
+      });
+
+      if (completed.count !== 1) {
+        throw new Error(
+          `Execution lease lost for job ${jobId}; this process must stop.`,
+        );
+      }
+    } catch (error) {
+      await this.prismaService.research.updateMany({
+        where: { id: jobId, executionToken },
+        data: {
+          status: 'FAILED',
+          stage: null,
+          executionToken: null,
+          executionLeaseUntil: null,
           error: error instanceof Error ? error.message : String(error),
         },
       });

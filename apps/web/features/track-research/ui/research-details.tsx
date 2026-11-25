@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 import type { ResearchResponse } from '@/entities/research';
+import { resumeResearch } from '@/entities/research/client';
 import { toast } from '@/shared/lib/toast';
 
 import { useResearchPolling } from '../model/use-research-polling';
@@ -25,10 +26,30 @@ const SPINNER_CLASSES =
 export function ResearchDetails({ initialResearch }: ResearchDetailsProps) {
   const { research, isPolling, errorMessage, transientError, isStale, retry } =
     useResearchPolling(initialResearch);
+  const [isResuming, setIsResuming] = useState(false);
 
   const isFailed =
     research.status === 'FAILED' || research.status === 'INTERRUPTED';
   const failureMessage = errorMessage ?? transientError;
+  const canResume = isFailed || (isStale && isPolling);
+
+  async function handleResume(): Promise<void> {
+    setIsResuming(true);
+
+    const result = await resumeResearch(research.id);
+
+    if (!result.ok) {
+      toast.error('Could not resume research', {
+        description: result.message,
+      });
+      setIsResuming(false);
+      return;
+    }
+
+    toast.success('Research resumed');
+    retry();
+    setIsResuming(false);
+  }
 
   // A toast is the page-level signal; the card below keeps the detail and the
   // Retry action, so a user who scrolled away still sees that polling stopped.
@@ -68,6 +89,19 @@ export function ResearchDetails({ initialResearch }: ResearchDetailsProps) {
               No update for two minutes — the run may be interrupted. Still
               checking.
             </p>
+          )}
+
+          {canResume && (
+            <div className="actions">
+              <button
+                type="button"
+                className="button secondary"
+                onClick={() => void handleResume()}
+                disabled={isResuming}
+              >
+                {isResuming ? 'Resuming…' : 'Tęsti tyrimą'}
+              </button>
+            </div>
           )}
 
           {research.error !== null && research.error !== '' && (

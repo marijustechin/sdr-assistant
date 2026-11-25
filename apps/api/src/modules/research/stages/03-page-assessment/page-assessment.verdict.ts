@@ -1,5 +1,4 @@
 import type { PageFacts } from './page-assessment.schema.js';
-import type { PageAssessmentSpec } from './page-assessment.spec.js';
 
 /** Why the code reached the verdict. Kept next to the verdict for review. */
 export type AssessmentReason =
@@ -37,7 +36,7 @@ export type AssessmentOutcome = {
  */
 export function deriveVerdict(
   facts: PageFacts,
-  spec: PageAssessmentSpec,
+  spec: { traits: readonly { name: string }[] },
 ): AssessmentOutcome {
   if (facts.publisher === 'third_party') {
     return { verdict: 'none', reason: 'third_party' };

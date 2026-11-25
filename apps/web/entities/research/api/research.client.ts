@@ -1,7 +1,14 @@
-import { getJson } from '@/shared/api/http';
+import { z } from 'zod';
+
+import { getJson, requestJson } from '@/shared/api/http';
 import type { ApiResult } from '@/shared/api/http';
 
 import { researchResponseSchema, type ResearchResponse } from '../model/schema';
+
+const resumeResponseSchema = z.object({
+  jobId: z.string(),
+  status: z.literal('RUNNING'),
+});
 
 /**
  * Browser-side status read through the same-origin proxy.
@@ -17,5 +24,15 @@ export function fetchResearchStatus(
     `/api/research/${encodeURIComponent(jobId)}`,
     researchResponseSchema,
     { signal },
+  );
+}
+
+export function resumeResearch(
+  jobId: string,
+): Promise<ApiResult<z.infer<typeof resumeResponseSchema>>> {
+  return requestJson(
+    `/api/research/${encodeURIComponent(jobId)}/resume`,
+    resumeResponseSchema,
+    { method: 'POST' },
   );
 }

@@ -1,5 +1,10 @@
 # TODO — SDR Assistant
 
+> **Historical record — not an active task list or authorization.** The instructions below
+> are preserved history. Current work is assigned and tracked only through the
+> authoritative [task registry](docs/tasks/README.md) and
+> [harness](docs/system/harness.md).
+
 Updated: 2026-11-17
 
 > Update this file after every completed task or audit. Keep one active item in

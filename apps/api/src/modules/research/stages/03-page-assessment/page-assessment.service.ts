@@ -1,65 +1,167 @@
 import { Injectable, Logger } from '@nestjs/common';
-import {
-  type PageAssessmentInput,
-  type PageForAssessment,
-} from '../../types.js';
+import type { PageAssessmentInput } from '../../types.js';
 import {
   resolveFileName,
   slugify,
   timestampForFileName,
   writeJsonFile,
 } from '../../lib/utils.js';
-import { llmChat } from '../../lib/llm-chat.js';
+import { isInsufficientBalanceError, llmChat } from '../../lib/llm-chat.js';
+import { parseJsonObject } from '../../lib/parse-json-object.js';
 import { LLM_CONFIG_FLASH } from '../../config/llm-config.js';
 import {
   PAGE_ASSESSMENT_PROMPT,
   PAGE_ASSESSMENT_PROMPT_VERSION,
+  STUDY_CRITERIA_PROMPT,
 } from './page-assessment.prompt.js';
 import {
-  buildPageFactsSchema,
-  type PageFacts,
+  buildPageFactsV4Schema,
+  studyCriteriaSchema,
+  type StudyCriteria,
 } from './page-assessment.schema.js';
-import { resolveStudySpec } from './page-assessment.spec.js';
+import { deriveVerdict } from './page-assessment.verdict.js';
+import { type PageAssessmentResult } from './page-assessment-result.js';
+import { PrismaService } from '../../../prisma/prisma.service.js';
+import type { Prisma } from '../../../../generated/prisma/client.js';
 import {
-  deriveVerdict,
-  type AssessmentOutcome,
-} from './page-assessment.verdict.js';
+  buildResultFromDecisions,
+  countDecisions,
+  decidedAssessments,
+  type PageAssessmentDecision,
+  type PageAssessmentState,
+} from './page-assessment.checkpoint.js';
 
-/** One row of the assessment dump: the derived verdict plus the facts behind it. */
-type AssessedPage = AssessmentOutcome & {
-  url: string;
-  facts: PageFacts;
-};
+const CHECKPOINT_EVERY = 5;
+const EXECUTION_LEASE_MS = 5 * 60 * 1000;
+
+type AssessmentMode = 'new' | 'resume';
 
 @Injectable()
 export class PageAssessmentService {
+  constructor(private readonly prismaService: PrismaService) {}
   private readonly logger = new Logger('PageAssessment');
+  private readonly inFlight = new Set<string>();
 
   async assessPages(
     data: PageAssessmentInput,
+    jobId: string,
     onStage?: (stage: string) => Promise<void>,
-  ): Promise<PageForAssessment[]> {
-    const { targetCountry, targetLanguage, product, pages } = data;
-    const runTag = `${slugify(product.generalCategoryName)}-${PAGE_ASSESSMENT_PROMPT_VERSION}-${timestampForFileName()}`;
-
-    // Fail before the first paid call when the study has no definition for this
-    // category: without the boundary and the traits every page answer would be
-    // judged against nothing.
-    const spec = resolveStudySpec(product.generalCategoryName);
-    const factsSchema = buildPageFactsSchema(
-      spec.traits.map((trait) => trait.name),
+    executionToken?: string,
+  ): Promise<PageAssessmentResult> {
+    return this.withExecutionLock(jobId, () =>
+      this.run(data, jobId, 'new', onStage, executionToken),
     );
+  }
 
-    const assessed: AssessedPage[] = [];
+  async resumePages(
+    data: PageAssessmentInput,
+    jobId: string,
+    onStage?: (stage: string) => Promise<void>,
+    executionToken?: string,
+  ): Promise<PageAssessmentResult> {
+    return this.withExecutionLock(jobId, () =>
+      this.run(data, jobId, 'resume', onStage, executionToken),
+    );
+  }
 
-    for (const [index, page] of pages.entries()) {
+  private async withExecutionLock<T>(
+    jobId: string,
+    operation: () => Promise<T>,
+  ): Promise<T> {
+    if (this.inFlight.has(jobId)) {
+      throw new Error(
+        `Stage 03 is already running for job ${jobId} in this process.`,
+      );
+    }
+
+    this.inFlight.add(jobId);
+
+    try {
+      return await operation();
+    } finally {
+      this.inFlight.delete(jobId);
+    }
+  }
+
+  private async run(
+    data: PageAssessmentInput,
+    jobId: string,
+    mode: AssessmentMode,
+    onStage?: (stage: string) => Promise<void>,
+    executionToken?: string,
+  ): Promise<PageAssessmentResult> {
+    const { targetCountry, targetLanguage, product, pages } = data;
+    const runTag = `gem-${slugify(product.generalCategoryName)}-${PAGE_ASSESSMENT_PROMPT_VERSION}-${timestampForFileName()}`;
+
+    if (pages.length === 0 && mode === 'new') {
+      const result = buildResultFromDecisions(data, []);
+      await this.prismaService.researchStage03.upsert({
+        where: { jobId },
+        create: {
+          jobId,
+          promptVersion: PAGE_ASSESSMENT_PROMPT_VERSION,
+          decisions: [],
+          decidedPages: 0,
+          errorPages: 0,
+          result: structuredClone(
+            result,
+          ) as unknown as Prisma.InputJsonValue,
+        },
+        update: {
+          promptVersion: PAGE_ASSESSMENT_PROMPT_VERSION,
+          decisions: [],
+          decidedPages: 0,
+          errorPages: 0,
+          result: structuredClone(
+            result,
+          ) as unknown as Prisma.InputJsonValue,
+        },
+      });
+      await writeJsonFile(
+        resolveFileName(`03.2-assessment-result-${runTag}`),
+        result,
+      );
+      return result;
+    }
+
+    const state =
+      mode === 'new'
+        ? await this.startNew(data, jobId, runTag, onStage)
+        : await this.loadResume(jobId);
+
+    for (const decision of state.decisions) {
+      const page = pages[decision.pageIndex];
+
+      if (
+        !page ||
+        page.url !== decision.url ||
+        page.canonicalUrl !== decision.canonicalUrl
+      ) {
+        throw new Error(
+          `Cannot resume 03: page identity changed at index ${decision.pageIndex}.`,
+        );
+      }
+    }
+
+    const decisions = new Map<number, PageAssessmentDecision>(
+      state.decisions.map((decision) => [decision.pageIndex, decision]),
+    );
+    const pending = pages
+      .map((page, index) => ({ page, index }))
+      .filter(({ index }) => decisions.get(index) === undefined);
+
+    let touched = 0;
+
+    for (const { page, index } of pending) {
       // Progress doubles as the run heartbeat: stage 02 marks a run
       // INTERRUPTED when no update arrives for five minutes.
+      const saved = decisions.size;
       // eslint-disable-next-line no-await-in-loop
-      await onStage?.(`03.1 Assessing pages ${index}/${pages.length}`);
+      await onStage?.(
+        `03.1 Assessing pages ${index}/${pages.length} (${saved}/${pages.length} saved)`,
+      );
 
       const content = page.content?.trim() ?? '';
-
       const excerpts = [...page.highlights, ...page.snippets]
         .map((text) => text.trim())
         .filter((text) => text.length > 0 && !content.includes(text));
@@ -67,8 +169,16 @@ export class PageAssessmentService {
       const input = {
         targetCountry,
         targetLanguage,
-        product,
-        spec,
+        product: {
+          productName: product.productName,
+          categoryName: product.categoryName,
+          generalCategoryName: product.generalCategoryName,
+          description: product.description,
+        },
+        spec: {
+          language: state.criteria.language,
+          traits: state.criteria.traits,
+        },
         page: {
           url: page.url,
           title: page.title,
@@ -77,83 +187,267 @@ export class PageAssessmentService {
         },
       };
 
-      // eslint-disable-next-line no-await-in-loop
-      const response = await llmChat(
-        LLM_CONFIG_FLASH,
-        PAGE_ASSESSMENT_PROMPT,
-        input,
-      );
-
-      const raw = response.choices[0]?.message.content ?? '';
+      let raw = '';
 
       try {
-        const facts = factsSchema.parse(parseJsonObject(raw));
-        const outcome = deriveVerdict(facts, spec);
+        // eslint-disable-next-line no-await-in-loop
+        const response = await llmChat(
+          LLM_CONFIG_FLASH,
+          PAGE_ASSESSMENT_PROMPT,
+          input,
+          'gemini',
+        );
 
-        assessed.push({ url: page.url, ...outcome, facts });
+        raw = response.choices[0]?.message.content ?? '';
+
+        const factsSchema = buildPageFactsV4Schema(
+          state.criteria.traits.map(({ name }) => name),
+        );
+        const facts = factsSchema.parse(parseJsonObject(raw));
+        const pageText = [page.title ?? '', content, ...input.page.excerpts];
+        const quote = facts.market.note?.replace(/\s+/gu, ' ').trim();
+
+        if (
+          facts.market.status !== 'unclear' &&
+          (!quote ||
+            !pageText.some((text) =>
+              text.replace(/\s+/gu, ' ').includes(quote),
+            ))
+        ) {
+          facts.market = { status: 'unclear', note: null };
+        }
+
+        const outcome = deriveVerdict(facts, state.criteria);
+        const excludedFrom04 =
+          facts.offerLanguage === 'other' && facts.market.status !== 'target'
+            ? 'offer_language_mismatch'
+            : null;
+
+        decisions.set(index, {
+          pageIndex: index,
+          url: page.url,
+          canonicalUrl: page.canonicalUrl,
+          status: 'decided',
+          verdict: outcome.verdict,
+          reason: outcome.reason,
+          facts,
+          excludedFrom04,
+          error: null,
+        });
       } catch (error) {
-        // A dirty answer is a page failure, not a run failure: keep the raw
-        // text so the malformed answer can be inspected after the run.
+        if (isInsufficientBalanceError(error)) throw error;
+
         const message = error instanceof Error ? error.message : String(error);
 
-        this.logger.warn(`Assessment failed for ${page.url}: ${message}`);
+        this.logger.warn(`Assessment skipped for ${page.url}: ${message}`);
 
+        // eslint-disable-next-line no-await-in-loop
         await writeJsonFile(
           resolveFileName(
             `03.1-raw-failure-${String(index).padStart(3, '0')}-${runTag}`,
           ),
           { url: page.url, raw, input, error: message },
         );
+
+        decisions.set(index, {
+          pageIndex: index,
+          url: page.url,
+          canonicalUrl: page.canonicalUrl,
+          status: 'error',
+          verdict: null,
+          reason: null,
+          facts: null,
+          excludedFrom04: null,
+          error: message,
+        });
+      }
+
+      touched += 1;
+
+      if (touched % CHECKPOINT_EVERY === 0) {
+        // eslint-disable-next-line no-await-in-loop
+        await this.saveCheckpoint(data, jobId, decisions, executionToken);
       }
     }
 
-    //laikinas
-    await writeJsonFile(resolveFileName(`03.1-test-data-${runTag}`), assessed);
-    ////// laikinas pabaiga
+    await onStage?.('03.2 Preparing assessment result...');
+    const result = await this.saveCheckpoint(
+      data,
+      jobId,
+      decisions,
+      executionToken,
+    );
 
-    return pages;
+    const ordered = this.orderedDecisions(decisions);
+    await writeJsonFile(
+      resolveFileName(`03.1-assessed-pages-${runTag}`),
+      decidedAssessments(ordered),
+    );
+    await writeJsonFile(
+      resolveFileName(`03.2-assessment-result-${runTag}`),
+      result,
+    );
+
+    return result;
   }
-}
 
-/** First complete JSON object in a model answer; trailing text is ignored. */
-function parseJsonObject(text: string): unknown {
-  const start = text.indexOf('{');
+  private async startNew(
+    data: PageAssessmentInput,
+    jobId: string,
+    runTag: string,
+    onStage?: (stage: string) => Promise<void>,
+  ): Promise<PageAssessmentState> {
+    await onStage?.('03.1 Preparing assessment criteria...');
 
-  if (start === -1) {
-    throw new Error('No JSON object in the answer');
-  }
+    const criteriaResponse = await llmChat(
+      LLM_CONFIG_FLASH,
+      STUDY_CRITERIA_PROMPT,
+      {
+        targetLanguage: data.targetLanguage,
+        targetCountry: data.targetCountry,
+        product: data.product,
+      },
+      'gemini',
+    );
 
-  let depth = 0;
-  let inString = false;
-  let escaped = false;
+    const criteria = studyCriteriaSchema.parse(
+      parseJsonObject(criteriaResponse.choices[0]?.message.content ?? ''),
+    );
 
-  for (let index = start; index < text.length; index += 1) {
-    const char = text[index];
-
-    if (inString) {
-      if (escaped) {
-        escaped = false;
-      } else if (char === '\\') {
-        escaped = true;
-      } else if (char === '"') {
-        inString = false;
-      }
-
-      continue;
+    if (criteria.language !== data.targetLanguage) {
+      throw new Error(
+        `03 criteria language "${criteria.language}" does not match targetLanguage "${data.targetLanguage}".`,
+      );
     }
 
-    if (char === '"') {
-      inString = true;
-    } else if (char === '{') {
-      depth += 1;
-    } else if (char === '}') {
-      depth -= 1;
+    const criteriaJson = structuredClone(
+      criteria,
+    ) as unknown as Prisma.InputJsonValue;
 
-      if (depth === 0) {
-        return JSON.parse(text.slice(start, index + 1));
-      }
-    }
+    await this.prismaService.researchStage03.upsert({
+      where: { jobId },
+      create: {
+        jobId,
+        criteria: criteriaJson,
+        promptVersion: PAGE_ASSESSMENT_PROMPT_VERSION,
+        decisions: [],
+        decidedPages: 0,
+        errorPages: 0,
+      },
+      update: {
+        criteria: criteriaJson,
+        promptVersion: PAGE_ASSESSMENT_PROMPT_VERSION,
+      },
+    });
+
+    await writeJsonFile(resolveFileName(`03.1-criteria-${runTag}`), criteria);
+
+    return {
+      criteria,
+      promptVersion: PAGE_ASSESSMENT_PROMPT_VERSION,
+      decisions: [],
+    };
   }
 
-  throw new Error('Unterminated JSON object in the answer');
+  private async loadResume(jobId: string): Promise<PageAssessmentState> {
+    const stored = await this.prismaService.researchStage03.findUnique({
+      where: { jobId },
+    });
+
+    if (!stored) {
+      throw new Error(
+        `Cannot resume 03: no saved stage 03 state for job ${jobId}.`,
+      );
+    }
+
+    if (!stored.criteria || !stored.promptVersion) {
+      throw new Error(
+        `Cannot resume 03: criteria or prompt version is missing for job ${jobId}.`,
+      );
+    }
+
+    if (stored.promptVersion !== PAGE_ASSESSMENT_PROMPT_VERSION) {
+      throw new Error(
+        `Cannot resume 03: saved prompt version "${stored.promptVersion}" is not executable; current version is "${PAGE_ASSESSMENT_PROMPT_VERSION}".`,
+      );
+    }
+
+    const criteria = studyCriteriaSchema.parse(stored.criteria);
+    const decisions = Array.isArray(stored.decisions)
+      ? (stored.decisions as PageAssessmentDecision[])
+      : [];
+
+    return {
+      criteria,
+      promptVersion: stored.promptVersion,
+      decisions,
+    };
+  }
+
+  private async saveCheckpoint(
+    data: PageAssessmentInput,
+    jobId: string,
+    decisions: ReadonlyMap<number, PageAssessmentDecision>,
+    executionToken?: string,
+  ): Promise<PageAssessmentResult> {
+    const ordered = this.orderedDecisions(decisions);
+    const result = buildResultFromDecisions(data, ordered);
+    const { decidedPages, errorPages } = countDecisions(ordered);
+    const persistedDecisions = structuredClone(
+      ordered,
+    ) as unknown as Prisma.InputJsonValue;
+    const persistedResult = structuredClone(
+      result,
+    ) as unknown as Prisma.InputJsonValue;
+
+    const checkpoint = {
+      decisions: persistedDecisions,
+      result: persistedResult,
+      decidedPages,
+      errorPages,
+    };
+
+    if (!executionToken) {
+      await this.prismaService.researchStage03.update({
+        where: { jobId },
+        data: checkpoint,
+      });
+      return result;
+    }
+
+    await this.prismaService.$transaction(async (tx) => {
+      const lease = await tx.research.updateMany({
+        where: {
+          id: jobId,
+          executionToken,
+          executionLeaseUntil: { gt: new Date() },
+        },
+        data: {
+          executionLeaseUntil: new Date(Date.now() + EXECUTION_LEASE_MS),
+          lastHeartbeatAt: new Date(),
+        },
+      });
+
+      if (lease.count !== 1) {
+        throw new Error(
+          `Execution lease lost for job ${jobId}; this process must stop.`,
+        );
+      }
+
+      await tx.researchStage03.update({
+        where: { jobId },
+        data: checkpoint,
+      });
+    });
+
+    return result;
+  }
+
+  private orderedDecisions(
+    decisions: ReadonlyMap<number, PageAssessmentDecision>,
+  ): PageAssessmentDecision[] {
+    return Array.from(decisions.values()).sort(
+      (left, right) => left.pageIndex - right.pageIndex,
+    );
+  }
 }

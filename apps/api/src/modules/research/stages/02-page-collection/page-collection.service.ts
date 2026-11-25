@@ -2,17 +2,13 @@ import { Injectable, Logger } from '@nestjs/common';
 import { type IdentificationFixture } from '../../lib/research-fixture.lib.js';
 import { isInsufficientBalanceError, llmChat } from '../../lib/llm-chat.js';
 import { LLM_CONFIG_FLASH } from '../../config/llm-config.js';
-import {
-  PAGE_TRIAGE_PROMPT,
-  PAGE_TRIAGE_PROMPT_VERSION,
-} from './page-triage.prompt.js';
+import { PAGE_TRIAGE_PROMPT } from './page-triage.prompt.js';
 import { pageTriageSchema, type PageTriage } from './page-triage.schema.js';
 import { stripCodeFence } from '../../lib/strip-code.fense.js';
 import {
   type PageForAssessment,
   ProductIdentificationResponse,
   TermCandidates,
-  TriageReport,
 } from '../../types.js';
 import {
   mergePages,
@@ -20,22 +16,20 @@ import {
 } from '../../pipeline/page-preparation.js';
 import { searchTermCandidates } from '../../pipeline/term-search.js';
 import {
-  readJsonFile,
   resolveFileName,
   slugify,
   timestampForFileName,
   writeJsonFile,
 } from '../../lib/utils.js';
 import { CreateResearchDto } from '../../dto/create-research.dto.js';
-import {
-  fetchMissingPageContent,
-  PageContentFetch,
-} from '../../pipeline/fetch-pages.js';
+import { fetchMissingPageContent } from '../../pipeline/fetch-pages.js';
 import {
   TERM_GENERATION_PROMPT,
   TERM_GENERATION_PROMPT_VERSION,
 } from './term-generation.prompt.js';
-import { TermGeneration } from './term-generation.schema.js';
+import { termGenerationSchema } from './term-generation.schema.js';
+import { PrismaService } from '../../../prisma/prisma.service.js';
+import { Prisma } from '../../../../generated/prisma/client.js';
 
 type PageTriageResult = {
   page: PageForAssessment;
@@ -53,114 +47,110 @@ const TRIAGE_CONCURRENCY = 6;
 
 @Injectable()
 export class PageCollectionService {
+  constructor(private readonly prismaService: PrismaService) {}
   private readonly logger = new Logger('PageCollection');
 
   async collect(
     input: CreateResearchDto,
     identifiedProduct: ProductIdentificationResponse,
     targetLanguage: string,
+    jobId: string,
     onStage?: (stage: string) => Promise<void>,
     resultsPerQuery: number = 20,
   ): Promise<PageForAssessment[]> {
     const { product, sourcePages } = identifiedProduct;
     const runTag = `qc${resultsPerQuery}-${slugify(identifiedProduct.product.generalCategoryName)}-${timestampForFileName()}`;
 
-    // // 2.1 Search terms generation
-    // await onStage?.('2.1 Generating search terms...');
-    // const { productName, categoryName, generalCategoryName, notes } = product;
+    // 2.1 Search terms generation
+    await onStage?.('2.1 Generating search terms...');
+    const { productName, categoryName, generalCategoryName, notes } = product;
 
-    // // Pages that already show the broadest category name: the prompt uses them
-    // // as evidence of the market's wording instead of relying on the model's
-    // // translation of the English description. Only what the prompt declares is
-    // // passed on: a domain, a title and a short excerpt around the match.
-    // const categoryPages = pagesWithCategory(sourcePages, generalCategoryName);
-    // const sourceWithCategory = categoryPages.map((page) => ({
-    //   domain: page.domain,
-    //   title: page.title ?? '',
-    //   excerpt: pageExcerpt(page, generalCategoryName),
-    // }));
+    // Pages that already show the broadest category name: the prompt uses them
+    // as evidence of the market's wording instead of relying on the model's
+    // translation of the English description. Only what the prompt declares is
+    // passed on: a domain, a title and a short excerpt around the match.
+    const categoryPages = pagesWithCategory(sourcePages, generalCategoryName);
+    const sourceWithCategory = categoryPages.map((page) => ({
+      domain: page.domain,
+      title: page.title ?? '',
+      excerpt: pageExcerpt(page, generalCategoryName),
+    }));
 
-    // const seedTerms = {
-    //   productDescription: input.description,
-    //   productNames: [productName],
-    //   categoryNames: [categoryName, generalCategoryName],
-    //   notes,
-    //   sourceWithCategory,
-    //   targetLanguage,
-    //   targetCountry: input.country,
-    // };
+    const seedTerms = {
+      productDescription: input.description,
+      productNames: [productName],
+      categoryNames: [categoryName, generalCategoryName],
+      notes,
+      sourceWithCategory,
+      targetLanguage,
+      targetCountry: input.country,
+    };
 
-    // const response = await llmChat(
-    //   LLM_CONFIG_FLASH,
-    //   TERM_GENERATION_PROMPT,
-    //   seedTerms,
-    // );
-
-    // const raw = response.choices[0]?.message.content ?? '';
-    // const additionalTerms: TermGeneration = JSON.parse(stripCodeFence(raw));
-
-    // await writeJsonFile(resolveFileName(`02.1-search-terms-${runTag}`), {
-    //   promptVersion: TERM_GENERATION_PROMPT_VERSION,
-    //   seedTerms,
-    //   additionalTerms,
-    // });
-
-    // // Terms search
-    // await onStage?.('2.2 Searching terms...');
-    // const queries = additionalTerms.queries;
-
-    // const searchTerms: TermCandidates = {
-    //   productNames: [
-    //     ...seedTerms.productNames,
-    //     ...queries.filter((q) => q.kind === 'product').map((q) => q.query),
-    //   ],
-    //   categoryNames: [
-    //     ...seedTerms.categoryNames,
-    //     ...queries.filter((q) => q.kind === 'category').map((q) => q.query),
-    //   ],
-    //   notes: seedTerms.notes,
-    //   targetLanguage,
-    // };
-    // const initialPages = await searchTermCandidates(searchTerms, {
-    //   country: input.country,
-    //   resultsPerQuery,
-    // });
-    // // Laikinas ////////////////////////
-    // await writeJsonFile(
-    //   resolveFileName(`02.2-initial-pages-${runTag}`),
-    //   initialPages,
-    // );
-    // // ////// laikinas pabaiga
-
-    // // Merge pages
-    // await onStage?.('2.3 Merging pages...');
-    // const searchPages = preparePagesForAssessment(initialPages);
-    // const mergedPages = mergePages(identifiedProduct.sourcePages, searchPages);
-
-    // //laikinas
-    // await writeJsonFile(
-    //   resolveFileName(`02.3-merged-pages-${runTag}`),
-    //   mergedPages,
-    // );
-    // ////// laikinas pabaiga
-
-    // // Fetch missing content
-    // await onStage?.('2.4 Fetching missing page content...');
-    // const fetchResults = await fetchMissingPageContent(mergedPages);
-    // await writeJsonFile(
-    //   resolveFileName(`02.4-fetch-results-${runTag}`),
-    //   fetchResults,
-    // );
-
-    // const pagesWithText = fetchResults.map((result) => result.page);
-    // await writeJsonFile(
-    //   resolveFileName(`02.5-page-collection-response-${runTag}`),
-    //   pagesWithText,
-    // );
-
-    const pagesWithText: PageForAssessment[] = await readJsonFile(
-      resolveFileName('03-test-dailylentes-30'),
+    const response = await llmChat(
+      LLM_CONFIG_FLASH,
+      TERM_GENERATION_PROMPT,
+      seedTerms,
     );
+
+    const raw = response.choices[0]?.message.content ?? '';
+    const additionalTerms = termGenerationSchema.parse(
+      JSON.parse(stripCodeFence(raw)),
+    );
+
+    await writeJsonFile(resolveFileName(`02.1-search-terms-${runTag}`), {
+      promptVersion: TERM_GENERATION_PROMPT_VERSION,
+      seedTerms,
+      additionalTerms,
+    });
+
+    // Terms search
+    await onStage?.('2.2 Searching terms...');
+    const queries = additionalTerms.queries;
+
+    const searchTerms: TermCandidates = {
+      productNames: [
+        ...seedTerms.productNames,
+        ...queries.filter((q) => q.kind === 'product').map((q) => q.query),
+      ],
+      categoryNames: [
+        ...seedTerms.categoryNames,
+        ...queries.filter((q) => q.kind === 'category').map((q) => q.query),
+      ],
+      notes: seedTerms.notes,
+      targetLanguage,
+    };
+    const initialPages = await searchTermCandidates(searchTerms, {
+      country: input.country,
+      resultsPerQuery,
+    });
+
+    // Merge pages
+    await onStage?.('2.3 Merging pages...');
+    const searchPages = preparePagesForAssessment(initialPages);
+    const mergedPages = mergePages(identifiedProduct.sourcePages, searchPages);
+
+    // Fetch missing content
+    await onStage?.('2.4 Fetching missing page content...');
+    const fetchResults = await fetchMissingPageContent(mergedPages);
+
+    const pagesWithText = fetchResults.map((result) => result.page);
+    await writeJsonFile(
+      resolveFileName(`02.4-response-${runTag}`),
+      pagesWithText,
+    );
+
+    const result = structuredClone(pagesWithText) as Prisma.InputJsonValue;
+
+    await this.prismaService.researchStage02.upsert({
+      where: { jobId },
+      create: {
+        jobId,
+        result,
+      },
+      update: {
+        result,
+      },
+    });
 
     return pagesWithText;
   }
@@ -199,6 +189,7 @@ export class PageCollectionService {
         }
 
         processed += 1;
+        // eslint-disable-next-line no-await-in-loop
         await onStage?.(`2.3 Processing pages ${processed}/${pages.length}`);
       }
     };
@@ -225,7 +216,7 @@ export class PageCollectionService {
     // e.g. a database error in the progress update. That is fatal too.
     const rejected = settled.find((entry) => entry.status === 'rejected');
 
-    if (rejected !== undefined && rejected.status === 'rejected') {
+    if (rejected?.status === 'rejected') {
       throw rejected.reason;
     }
 
@@ -286,62 +277,6 @@ export class PageCollectionService {
       },
     };
   }
-}
-
-/**
- * TEMPORARY (stage 02 development): writes a random subset of `pages` to
- * `filePath` so the per-page work can run on a small input.
- *
- * Fisher-Yates shuffle, so every page has exactly the same chance of being
- * picked. If there are fewer pages than `size`, all of them are written.
- */
-async function writeRandomPageSample(
-  filePath: string,
-  pages: PageForAssessment[],
-  size: number,
-): Promise<void> {
-  const shuffled = [...pages];
-
-  for (let index = shuffled.length - 1; index > 0; index -= 1) {
-    const swapWith = Math.floor(Math.random() * (index + 1));
-    const value = shuffled[index];
-    shuffled[index] = shuffled[swapWith];
-    shuffled[swapWith] = value;
-  }
-
-  await writeJsonFile(filePath, shuffled.slice(0, size));
-}
-
-/**
- * TEMPORARY (stage 02 development): one readable file per run so prompt
- * versions can be compared without digging through the logger output.
- */
-function buildTriageReport(input: {
-  results: PageTriageResult[];
-  fixture: IdentificationFixture;
-  promptVersion: string;
-}): TriageReport {
-  return {
-    promptVersion: input.promptVersion,
-    createdAt: new Date().toISOString(),
-    targetCountry: input.fixture.input.country,
-    targetLanguage: input.fixture.targetLanguage,
-    product: {
-      productName: input.fixture.product.productName,
-      categoryName: input.fixture.product.categoryName,
-      generalCategoryName: input.fixture.product.generalCategoryName,
-    },
-    results: input.results.map(({ page, triage, error }) => ({
-      url: page.url,
-      domain: page.domain,
-      title: page.title,
-      contentChars: (page.content ?? '').length,
-      verdict: triage?.verdict ?? null,
-      reason: triage?.reason ?? null,
-      evidence: triage?.evidence ?? null,
-      error: error ?? null,
-    })),
-  };
 }
 
 /** Case- and diacritic-insensitive form used to match category words. */

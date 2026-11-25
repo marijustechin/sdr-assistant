@@ -13,6 +13,12 @@ export class ResearchController {
     return this.researchService.start(dto);
   }
 
+  @Post(':jobId/resume')
+  @HttpCode(202)
+  resume(@Param('jobId') jobId: string) {
+    return this.researchService.resume(jobId);
+  }
+
   @Get(':jobId')
   getById(@Param('jobId') jobId: string) {
     return this.researchService.getById(jobId);

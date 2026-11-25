@@ -43,10 +43,59 @@ model Research {
   result          Json?
   error           String?
   lastHeartbeatAt DateTime?
+  executionToken  String?
+  executionLeaseUntil DateTime?
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
+  stage01Result   ResearchStage01?
+  stage02Result   ResearchStage02?
+  stage03Result   ResearchStage03?
 
   @@map("researches")
+}
+
+/// Stage 01 result for one research job.
+model ResearchStage01 {
+  id                 String   @id @default(cuid())
+  jobId              String   @unique
+  job                Research @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  identifiedProduct  Json
+  preparedCandidates Json
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@map("research_stage_01_results")
+}
+
+/// Full stage 02 result for one research job.
+model ResearchStage02 {
+  id        String   @id @default(cuid())
+  jobId     String   @unique
+  job       Research @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  result    Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("research_stage_02_results")
+}
+
+/// Stage 03 result and resumable progress for one research job.
+model ResearchStage03 {
+  id            String   @id @default(cuid())
+  jobId         String   @unique
+  job           Research @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  criteria      Json?
+  promptVersion String?
+  /// Cumulative per-page decisions: every a, b, none, language exclusion and error.
+  decisions     Json     @default("[]")
+  decidedPages  Int      @default(0)
+  errorPages    Int      @default(0)
+  /// 03.2 result built from all final decisions; null until the first checkpoint.
+  result        Json?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("research_stage_03_results")
 }
 
 /// One stored value per registered setting key. The code registry owns the

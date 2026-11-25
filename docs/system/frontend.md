@@ -1,8 +1,9 @@
 # Frontend architecture and conventions
 
 Rules for `apps/web`. They are enforceable, not aspirational: each section names the check
-that backs it. Read this before touching the app; read
-[harness.md](harness.md) before running anything.
+that backs it. Read this before touching the app; read [harness.md](harness.md) before
+running anything and [environment.md](environment.md) for environment observations. Actual
+research behavior is documented in [research.md](research.md).
 
 Decision record: [ADR-002 Lite FSD](../decisions/ADR-002-frontend-lite-fsd.md).
 Migration order: [plan](../plans/frontend-action-plan-2026-11-14.md) §2.
@@ -19,6 +20,9 @@ Migration order: [plan](../plans/frontend-action-plan-2026-11-14.md) §2.
 ---
 
 ## 2. Structure
+
+The “Today” tree is the current structure; the “Target” tree is a plan proposal, not current
+state or execution authorization.
 
 ### Today (after Phase 1–2: data layer + research P0)
 
@@ -136,8 +140,9 @@ Rules:
    dropped but never shown to a user. Plain-text and HTML error bodies never become the
    user-facing message.
 4. **Timeouts and `cache: 'no-store'`** are set inside `shared/api`, not per call site.
-5. `result` from `GET /research/:jobId` is `z.unknown()` until stage 02 settles. Render it
-   defensively; do not guess its shape.
+5. `result` from `GET /research/:jobId` is `z.unknown()`. The current normal completion may
+   omit company profiles while the resume path includes `companies`; render it defensively
+   and do not guess its shape. See [research.md](research.md) §7.
 
 ---
 
@@ -274,12 +279,14 @@ No default exports for components; pages keep Next's default export signature.
 | Formatting | `npm run format:check` | active |
 | Server/client leaks | `server-only` + a separate `client.ts` entry per slice | active |
 | HTTP failures and polling | `npm run test` (vitest: `shared/api/http`, `use-research-polling`) | active |
-| Rendered behaviour | `npm run e2e` (Playwright, mock API) | active (11 scenarios) |
+| Rendered behaviour | `npm run e2e` (Playwright, mock API) | active; include it in the approved proof when behaviour changes |
 | Layer boundaries | `eslint-plugin-boundaries` | Phase 4.4 |
 | No `fetch` outside `shared/api` | grep in DoD + review | active (single call site) |
 | Page-level rendering | integration test / manual matrix | Phase 5 + manual |
 
-All of them run together in `npm run verify:web`.
+`npm run verify:web` runs typecheck, lint, unit tests and format check. Playwright E2E is a
+separate rendered-behaviour gate; include it in the approved proof when a change affects
+rendered behaviour.
 
 ---
 
@@ -309,4 +316,5 @@ Do not reintroduce these (each has an audit reference):
 4. Route file: metadata + `params` + one view component.
 5. Interactive part only as `'use client'`; mutations via a server action in the feature.
 6. Render all states: loading, empty, error, terminal.
-7. `npm run verify:web`, then the manual checklist from [harness.md](harness.md) §5.
+7. Include `npm run verify:web` in the approved proof, then use the verification and
+   rendered-behaviour checklist in [harness.md](harness.md).

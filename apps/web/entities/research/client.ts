@@ -5,4 +5,4 @@
  * server-only code (`server-only` turns that into a build error) and would pull
  * `API_URL` into the client bundle.
  */
-export { fetchResearchStatus } from './api/research.client';
+export { fetchResearchStatus, resumeResearch } from './api/research.client';

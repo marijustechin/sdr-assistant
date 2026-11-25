@@ -1,5 +1,9 @@
 # Backlog — SDR Assistant
 
+> **Historical backlog — not a task list or authorization.** Items here are preserved as
+> historical proposals and do not become active tasks automatically. See the authoritative
+> [task registry](../docs/tasks/README.md) and [harness](../docs/system/harness.md).
+
 Not scheduled. Ordered roughly by value. The plan is in
 [docs/plans/frontend-action-plan-2026-11-14.md](../docs/plans/frontend-action-plan-2026-11-14.md).
 

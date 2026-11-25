@@ -1,4 +1,6 @@
-import { type LLMConfig, type DeepSeekResponse } from '../types.js';
+import type { LLMConfig, DeepSeekResponse } from '../types.js';
+
+export type LlmProvider = 'ds' | 'gemini';
 
 /**
  * A single chat call never gets more than this.
@@ -87,16 +89,32 @@ export async function llmChat(
   config: LLMConfig,
   systemPrompt: string,
   userContent: object,
+  provider: LlmProvider = 'ds',
 ): Promise<DeepSeekResponse> {
+  const gemini = provider === 'gemini';
+  const name = gemini ? 'Gemini' : 'DeepSeek';
+  const endpoint = gemini
+    ? 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions'
+    : 'https://api.deepseek.com/chat/completions';
+  const keyVariable = gemini ? 'GEMINI_API_KEY' : 'DEEPSEEK_API_KEY';
+  const apiKey = process.env[keyVariable]?.trim();
+  if (!apiKey) throw new Error(`Missing ${keyVariable}`);
+
+  const model = gemini ? process.env.GEMINI_MODEL?.trim() : config.model;
+  if (gemini && !model) throw new Error('Missing GEMINI_MODEL');
+  const modelConfig = gemini
+    ? { model, temperature: config.temperature, max_tokens: config.max_tokens }
+    : config;
+
   try {
-    const response = await fetch('https://api.deepseek.com/chat/completions', {
+    const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${process.env.DEEPSEEK_API_KEY}`,
+        Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        ...config,
+        ...modelConfig,
         response_format: { type: 'json_object' },
         messages: [
           {
@@ -119,7 +137,7 @@ export async function llmChat(
         providerError.type === null ? '' : ` (${providerError.type})`;
 
       throw new LlmRequestError(
-        `DeepSeek API error ${response.status}${label}: ${body.slice(0, 500)}`,
+        `${name} API error ${response.status}${label}: ${body.slice(0, 500)}`,
         { status: response.status, ...providerError },
       );
     }
@@ -131,7 +149,7 @@ export async function llmChat(
       (error.name === 'TimeoutError' || error.name === 'AbortError')
     ) {
       throw new Error(
-        `DeepSeek request timed out after ${REQUEST_TIMEOUT_MS / 1000}s`,
+        `${name} request timed out after ${REQUEST_TIMEOUT_MS / 1000}s`,
       );
     }
 
