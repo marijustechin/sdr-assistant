@@ -34,7 +34,7 @@ Rules:
 | --- | --- | --- | --- |
 | SDR-001 | Agent Execution Policy and Task Lifecycle | DONE | [SDR-001-agent-execution-policy.md](SDR-001-agent-execution-policy.md) |
 | SDR-002 | Harness and Documentation Reconciliation | DONE | [SDR-002-harness-reconciliation.md](SDR-002-harness-reconciliation.md) |
-| SDR-003 | Working Tree Inventory and Baseline Preservation | READY_FOR_HUMAN_REVIEW | [SDR-003-baseline-preservation.md](SDR-003-baseline-preservation.md) |
+| SDR-003 | Working Tree Inventory and Baseline Preservation | DONE | [SDR-003-baseline-preservation.md](SDR-003-baseline-preservation.md) |
 
 SDR-001, SDR-002 and SDR-003 are registered. No subsequent task is created or scheduled.
 
@@ -45,8 +45,9 @@ SDR-001, SDR-002 and SDR-003 are registered. No subsequent task is created or sc
   `DONE` on 2026-11-25.
 - SDR-002 was accepted by the human owner and is `DONE`.
 - SDR-003 Phase A was accepted. ENV-002 is accepted and `DONE`; its 36-file backup was
-  verified. Phase B resumed under the revised 60-path manifest with eight explicit
-  exclusions for sensitive/fixture-dependent files. The checkpoint is experimental and has
-  not been validated through tests or builds.
+  verified. The Phase B local checkpoint `61302c7f9c48a8d2757638271d0381d9db2951d4` is
+  accepted and SDR-003 is `DONE`. The checkpoint is experimental and has not been
+  validated through tests or builds. Remote push was a separate operation pending when
+  this documentation commit was prepared.
 - Historical records in `ops/current.md`, `ops/backlog.md`, `TODO.md` and `HANDOVER.md` are
   not task authorization or authoritative status.

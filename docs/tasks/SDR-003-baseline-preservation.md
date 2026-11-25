@@ -3,10 +3,10 @@
 ## 1. Task ID and status
 
 - **Task ID:** SDR-003
-- **Phase:** A accepted; B resumed under the revised 60-path manifest
-- **Status:** READY_FOR_HUMAN_REVIEW
+- **Phase:** A accepted; B local checkpoint accepted; remote push pending at documentation time
+- **Status:** DONE
 - **Registry:** [README.md](README.md)
-- **Human acceptance:** Phase A and ENV-002 accepted on 2026-11-25; Phase B resumed with eight explicit exclusions.
+- **Human acceptance:** local checkpoint `61302c7f9c48a8d2757638271d0381d9db2951d4` accepted on 2026-11-25; ENV-002 accepted as `DONE`. Remote push is a separate operation and was still pending when this documentation commit was prepared.
 
 ## 2. Objective
 
@@ -614,3 +614,127 @@ deleted, relocated, sanitized or regenerated.
 - Only `docs/tasks/README.md`, this task document, and the exact revised manifest are
   authorized for content changes/staging; `SDR-002` and other completed task records are
   not modified.
+
+## Post-commit verification evidence (pending documentation change)
+
+This section was added after commit `61302c7` and is **not part of that commit**. It is a
+pending documentation change; no second commit was created automatically.
+
+- **Commit:** `61302c7f9c48a8d2757638271d0381d9db2951d4`
+- **Message:** `chore: checkpoint current implementation and documentation`
+- **Committed paths:** 60 (23 modified, 31 added, 6 deleted).
+- **Intentional deletions committed:** all 6 (one old stage-03 spec and five old
+  company-discovery files).
+- **Excluded paths committed:** 0.
+- **Remaining working tree:** 21 untracked excluded artifacts (8 additional exclusions +
+  13 artifact exclusions); no staged changes. This task document is the only post-commit
+  modified tracked file, as a pending documentation change.
+- **Proof command:** `git show --format=fuller --name-status --no-renames HEAD`
+- **Exit code:** 0
+- **Actual output:**
+
+```text
+commit 61302c7f9c48a8d2757638271d0381d9db2951d4
+Author:     marijustechin <m.smiginas@gmail.com>
+AuthorDate: Wed Nov 25 22:43:22 2026 +0200
+Commit:     marijustechin <m.smiginas@gmail.com>
+CommitDate: Wed Nov 25 22:43:22 2026 +0200
+
+    chore: checkpoint current implementation and documentation
+
+M	AGENTS.md
+M	HANDOVER.md
+A	PRODUCT.md
+M	README.md
+M	TODO.md
+A	apps/api/prisma/migrations/20261124123231_add_stage_results/migration.sql
+A	apps/api/prisma/migrations/20261124123609_stage01_identified_and_prepared/migration.sql
+A	apps/api/prisma/migrations/20261124144445_stage03_resume_state/migration.sql
+M	apps/api/prisma/schema.prisma
+M	apps/api/src/modules/research/lib/llm-chat.ts
+A	apps/api/src/modules/research/lib/parse-json-object.ts
+M	apps/api/src/modules/research/research.controller.ts
+M	apps/api/src/modules/research/research.module.ts
+M	apps/api/src/modules/research/research.service.ts
+M	apps/api/src/modules/research/stages/01-product-identification/product-identification.service.ts
+M	apps/api/src/modules/research/stages/02-page-collection/page-collection.service.ts
+A	apps/api/src/modules/research/stages/03-page-assessment/page-assessment-result.ts
+A	apps/api/src/modules/research/stages/03-page-assessment/page-assessment.checkpoint.ts
+M	apps/api/src/modules/research/stages/03-page-assessment/page-assessment.prompt.ts
+M	apps/api/src/modules/research/stages/03-page-assessment/page-assessment.schema.ts
+M	apps/api/src/modules/research/stages/03-page-assessment/page-assessment.service.ts
+D	apps/api/src/modules/research/stages/03-page-assessment/page-assessment.spec.ts
+M	apps/api/src/modules/research/stages/03-page-assessment/page-assessment.verdict.ts
+D	apps/api/src/modules/research/stages/04-company-discovery/company-discovery.prompt.ts
+D	apps/api/src/modules/research/stages/04-company-discovery/company-discovery.schema.ts
+D	apps/api/src/modules/research/stages/04-company-discovery/company-discovery.service.ts
+D	apps/api/src/modules/research/stages/04-company-discovery/contact-page-picker.prompt.ts
+D	apps/api/src/modules/research/stages/04-company-discovery/contact-page-picker.schema.ts
+A	apps/api/src/modules/research/stages/04-company-profiling/company-profiling.batch.ts
+A	apps/api/src/modules/research/stages/04-company-profiling/company-profiling.first-call.ts
+A	apps/api/src/modules/research/stages/04-company-profiling/company-profiling.gap-fill.ts
+A	apps/api/src/modules/research/stages/04-company-profiling/company-profiling.geography.ts
+A	apps/api/src/modules/research/stages/04-company-profiling/company-profiling.input.ts
+A	apps/api/src/modules/research/stages/04-company-profiling/company-profiling.market.ts
+A	apps/api/src/modules/research/stages/04-company-profiling/company-profiling.profile.ts
+A	apps/api/src/modules/research/stages/04-company-profiling/company-profiling.prompt.ts
+A	apps/api/src/modules/research/stages/04-company-profiling/company-profiling.schema.ts
+A	apps/api/src/modules/research/stages/04-company-profiling/company-profiling.service.ts
+A	apps/api/src/modules/research/stages/04-company-profiling/company-profiling.types.ts
+M	apps/api/src/modules/research/types.ts
+A	apps/api/test/company-profiling.geography.test.ts
+A	apps/api/test/company-profiling.market.test.ts
+A	apps/api/test/page-assessment.input.test.ts
+A	apps/api/test/page-assessment.resume.test.ts
+A	apps/api/test/research.result.test.ts
+A	apps/api/test/research.resume.test.ts
+A	apps/web/app/api/research/[jobId]/resume/route.ts
+M	apps/web/entities/research/api/research.client.ts
+M	apps/web/entities/research/client.ts
+M	apps/web/features/track-research/ui/research-details.tsx
+A	docs/system/environment.md
+M	docs/system/frontend.md
+M	docs/system/harness.md
+A	docs/system/research.md
+A	docs/tasks/README.md
+A	docs/tasks/SDR-001-agent-execution-policy.md
+A	docs/tasks/SDR-002-harness-reconciliation.md
+A	docs/tasks/SDR-003-baseline-preservation.md
+M	ops/backlog.md
+M	ops/current.md
+```
+
+### Final verification summary
+
+- Staged-manifest comparison before commit: exactly 60 paths, 23 M / 31 A / 6 D; 0 excluded
+  paths; no mismatches.
+- Eight additional exclusions and all 13 artifact exclusions remain present and unstaged.
+- The accepted ENV-002 backup remains at
+  `C:\Users\msmig\AppData\Local\SDR-Backups\sdr-assistant-20261125-223538` with manifest
+  SHA-256 `F530D26E8234C4379BFF58A948B3F2B4BE1053DD999F90E8AED168E443C23D11`; it was not
+  recreated or modified.
+- Approved-60 sensitivity scan: 0 email-literal files; the only token-pattern match remains
+  the `executionToken` code identifier.
+- No application or research content changed from the pre-task working tree.
+- The checkpoint is experimental and has not been validated through tests or builds.
+- Research Implementation Freeze remains active.
+- SDR-003 remains `READY_FOR_HUMAN_REVIEW` and is not `DONE`; no push or SDR-004 start was
+  performed.
+
+## Final acceptance and remote baseline preservation (2026-11-25)
+
+- The human owner accepted the local checkpoint
+  `61302c7f9c48a8d2757638271d0381d9db2951d4` with message
+  `chore: checkpoint current implementation and documentation`.
+- The accepted checkpoint contains exactly 60 approved changed paths.
+- ENV-002 remains accepted as `DONE`; its verified 36-file backup remains unchanged at
+  `C:\Users\msmig\AppData\Local\SDR-Backups\sdr-assistant-20261125-223538`.
+- SDR-003 is marked `DONE` for the accepted **local checkpoint**.
+- Remote preservation (`git push origin main`) is a separate operation. At the time this
+  documentation commit was prepared it was still pending; the push result and remote hash
+  verification are recorded in the task completion report, not retroactively added to this
+  commit.
+- The checkpoint is experimental. Tests, builds, application startup, database operations
+  and runtime behavior have not been validated.
+- All 21 excluded untracked files remain present and unstaged. Research Implementation
+  Freeze remains fully active. SDR-004 has not been started.
