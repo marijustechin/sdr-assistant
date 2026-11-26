@@ -47,6 +47,8 @@ export const MAIN_NAV: readonly NavItem[] = [
 export type SectionTab = {
   href: string;
   label: string;
+  /** Optional matcher for nested pages that belong to the same tab. */
+  isActive?: (pathname: string) => boolean;
 };
 
 export type SectionNav = {
@@ -95,12 +97,23 @@ export function getSectionNav(pathname: string): SectionNav | null {
     return { label: 'Product', items: productTabs(id) };
   }
 
-  if (/^\/settings(?:\/research)?\/?$/.test(pathname)) {
+  if (
+    /^\/settings(?:\/research|\/email-accounts(?:\/new|\/[^/]+\/edit)?)?\/?$/.test(
+      pathname,
+    )
+  ) {
     return {
       label: 'Settings',
       items: [
         { href: '/settings', label: 'Overview' },
         { href: '/settings/research', label: 'Research' },
+        {
+          href: '/settings/email-accounts',
+          label: 'Email accounts',
+          isActive: (current) =>
+            current === '/settings/email-accounts' ||
+            current.startsWith('/settings/email-accounts/'),
+        },
       ],
     };
   }

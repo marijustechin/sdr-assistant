@@ -98,6 +98,42 @@ model ResearchStage03 {
   @@map("research_stage_03_results")
 }
 
+/// Transport security of one mail connection. Unencrypted authentication is
+/// deliberately not representable.
+enum EmailSecurityMode {
+  TLS
+  STARTTLS
+}
+
+/// One independently configurable mailbox. SMTP and IMAP credentials are
+/// stored separately as authenticated ciphertext (AES-256-GCM, key from
+/// `EMAIL_ACCOUNT_ENCRYPTION_KEY`); no plaintext credential is ever persisted
+/// or returned. There is intentionally no relation to research yet.
+model EmailAccount {
+  id           String  @id @default(cuid())
+  name         String
+  senderName   String
+  emailAddress String
+  enabled      Boolean @default(true)
+
+  smtpHost              String
+  smtpPort              Int
+  smtpSecurity          EmailSecurityMode
+  smtpUsername          String
+  smtpPasswordEncrypted String
+
+  imapHost              String
+  imapPort              Int
+  imapSecurity          EmailSecurityMode
+  imapUsername          String
+  imapPasswordEncrypted String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("email_accounts")
+}
+
 /// One stored value per registered setting key. The code registry owns the
 /// schema and the default; this table only holds values that were explicitly
 /// saved. `value` stays JSON so new setting types need no migration.

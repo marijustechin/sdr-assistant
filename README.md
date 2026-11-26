@@ -28,12 +28,12 @@ four-stage implementation and its known discrepancies are in
 ├── apps/
 │   ├── api/                  NestJS + Fastify + Prisma; research pipeline
 │   │   ├── prisma/           schema and migrations
-│   │   └── src/modules/      health, products, research, settings, prisma
+│   │   └── src/modules/      health, products, research, settings, email-accounts, prisma
 │   └── web/                  Next.js App Router
 │       ├── app/              routes, polling proxy, styles
 │       ├── _pages/           non-routable page compositions
-│       ├── entities/         research and settings data layers
-│       ├── features/         user actions (track-research, update-settings)
+│       ├── entities/         research, settings and email-account data layers
+│       ├── features/         user actions (track-research, update-settings, manage-email-account)
 │       ├── widgets/          app shell
 │       └── shared/           HTTP, config, formatting, UI primitives
 ├── docs/
@@ -89,9 +89,40 @@ Or run one side: `npm run dev:api` / `npm run dev:web`.
 | `GET /research` | Research jobs |
 | `GET /research/:jobId` | Job status, stage, result and error |
 | `GET /settings` / `PATCH /settings` | Settings registry and validated updates |
+| `GET /email-accounts` / `GET /email-accounts/:id` | Configured email accounts (no credentials) |
+| `POST /email-accounts` / `PATCH /email-accounts/:id` | Create/update an email account, including enable/disable |
 
 The web app reads `API_URL` (default `http://localhost:4000`). The API has no CORS;
 browser requests go through same-origin Next.js route handlers.
+
+### Email accounts
+
+**Settings → Email accounts** manages the mailboxes that future outreach will use. Each
+account has its own sender identity, SMTP settings and IMAP settings. Accounts can be
+created, edited, enabled and disabled; there is no hard deletion, and this task adds no
+sending, connection test or incoming-mail synchronization.
+
+Passwords are encrypted with AES-256-GCM before they are written to PostgreSQL and are
+never returned by the API — responses only carry `smtpPasswordConfigured` /
+`imapPasswordConfigured`. Editing an account with an empty password field keeps the stored
+credential; a non-empty value replaces it.
+
+Encryption needs `EMAIL_ACCOUNT_ENCRYPTION_KEY` in `apps/api/.env`: exactly 32 random bytes
+encoded as Base64. Generate it with:
+
+```powershell
+node -e "process.stdout.write(require('node:crypto').randomBytes(32).toString('base64'))"
+```
+
+There is no default key and no plaintext fallback, so creating or updating an account fails
+safely while the variable is missing or invalid. The value must never be committed.
+
+The application has no end-user authentication yet. Email-account management therefore
+belongs to the trusted local deployment only and must not be exposed publicly.
+
+The `email_accounts` table is created by the additive migration
+`20261125230000_add_email_account`. That migration was not applied, and the account UI needs
+it (plus the encryption key) before it can persist real accounts.
 
 ### Research flow
 

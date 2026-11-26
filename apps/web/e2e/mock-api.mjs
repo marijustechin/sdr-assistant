@@ -118,12 +118,104 @@ function settingsPayload() {
   };
 }
 
+/**
+ * Email accounts for the SDR-004 scenarios. Passwords are never stored or
+ * served here: only the `*PasswordConfigured` flags exist, mirroring the API.
+ */
+const emailAccounts = new Map();
+let emailAccountSequence = 0;
+
+const EMAIL_ACCOUNT_FIELDS = [
+  'name',
+  'senderName',
+  'emailAddress',
+  'enabled',
+  'smtpHost',
+  'smtpPort',
+  'smtpSecurity',
+  'smtpUsername',
+  'imapHost',
+  'imapPort',
+  'imapSecurity',
+  'imapUsername',
+];
+
+function emailAccount(overrides) {
+  return {
+    id: 'email-account-1',
+    name: 'Outreach mailbox',
+    senderName: 'Sales Team',
+    emailAddress: 'sales@example.test',
+    enabled: true,
+    smtpHost: 'smtp.example.test',
+    smtpPort: 587,
+    smtpSecurity: 'STARTTLS',
+    smtpUsername: 'smtp-user',
+    smtpPasswordConfigured: true,
+    imapHost: 'imap.example.test',
+    imapPort: 993,
+    imapSecurity: 'TLS',
+    imapUsername: 'imap-user',
+    imapPasswordConfigured: true,
+    createdAt: CREATED_AT,
+    updatedAt: CREATED_AT,
+    ...overrides,
+  };
+}
+
+function createEmailAccount(body) {
+  emailAccountSequence += 1;
+  const now = new Date().toISOString();
+  const created = emailAccount({
+    id: `email-account-${emailAccountSequence}`,
+    ...Object.fromEntries(
+      EMAIL_ACCOUNT_FIELDS.filter((field) => Object.hasOwn(body, field)).map(
+        (field) => [field, body[field]],
+      ),
+    ),
+    smtpPasswordConfigured:
+      typeof body.smtpPassword === 'string' && body.smtpPassword !== '',
+    imapPasswordConfigured:
+      typeof body.imapPassword === 'string' && body.imapPassword !== '',
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  emailAccounts.set(created.id, created);
+
+  return created;
+}
+
+function updateEmailAccount(existing, body) {
+  const updated = { ...existing, updatedAt: new Date().toISOString() };
+
+  for (const field of EMAIL_ACCOUNT_FIELDS) {
+    if (Object.hasOwn(body, field)) {
+      updated[field] = body[field];
+    }
+  }
+
+  if (typeof body.smtpPassword === 'string' && body.smtpPassword !== '') {
+    updated.smtpPasswordConfigured = true;
+  }
+
+  if (typeof body.imapPassword === 'string' && body.imapPassword !== '') {
+    updated.imapPasswordConfigured = true;
+  }
+
+  emailAccounts.set(updated.id, updated);
+
+  return updated;
+}
+
 function reset() {
   for (const state of Object.values(dynamicJobs)) {
     state.calls = 0;
   }
 
   createdProducts.clear();
+  emailAccounts.clear();
+  emailAccountSequence = 0;
   SETTINGS['research.pageCollection.resultsPerQuery'] = 20;
 }
 
@@ -288,6 +380,46 @@ const server = createServer(async (request, response) => {
     Object.assign(SETTINGS, next);
 
     return send(response, 200, settingsPayload());
+  }
+
+  if (method === 'GET' && path === '/email-accounts') {
+    return send(response, 200, [...emailAccounts.values()]);
+  }
+
+  if (method === 'POST' && path === '/email-accounts') {
+    const body = await readBody(request);
+
+    // Deterministic failure path for the "API failure feedback" scenario.
+    if (String(body.emailAddress ?? '').endsWith('@reject.test')) {
+      return send(response, 422, {
+        statusCode: 422,
+        message: 'The mailbox provider refused this account.',
+        error: 'Unprocessable Entity',
+      });
+    }
+
+    return send(response, 201, createEmailAccount(body));
+  }
+
+  const emailAccountMatch = /^\/email-accounts\/([^/]+)$/.exec(path);
+
+  if (emailAccountMatch !== null) {
+    const id = decodeURIComponent(emailAccountMatch[1]);
+    const found = emailAccounts.get(id);
+
+    if (found === undefined) {
+      return notFound(response, 'Email account not found');
+    }
+
+    if (method === 'GET') {
+      return send(response, 200, found);
+    }
+
+    if (method === 'PATCH') {
+      const body = await readBody(request);
+
+      return send(response, 200, updateEmailAccount(found, body));
+    }
   }
 
   if (method === 'GET' && path === '/products') {

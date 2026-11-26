@@ -21,7 +21,10 @@ export function SectionNav() {
     <nav className="section-nav" aria-label={section.label}>
       <div className="section-nav-inner">
         {section.items.map((item) => {
-          const isActive = isActiveHref(item.href, pathname);
+          const isActive =
+            item.isActive === undefined
+              ? isActiveHref(item.href, pathname)
+              : item.isActive(pathname);
 
           return (
             <Link

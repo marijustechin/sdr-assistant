@@ -6,10 +6,7 @@ export function SettingsPage() {
       <div className="page-header">
         <div>
           <h1>Settings</h1>
-          <p className="muted">
-            Stored in PostgreSQL and applied by the API. One group now, more
-            later.
-          </p>
+          <p className="muted">Stored in PostgreSQL and applied by the API.</p>
         </div>
       </div>
 
@@ -22,6 +19,19 @@ export function SettingsPage() {
         </div>
         <p className="muted">
           Search and page-collection behaviour of the research pipeline.
+        </p>
+      </section>
+
+      <section className="card">
+        <div className="card-header">
+          <h2>Email accounts</h2>
+          <Link href="/settings/email-accounts" className="button small">
+            Open
+          </Link>
+        </div>
+        <p className="muted">
+          Mailboxes for future communication with discovered companies. SMTP and
+          IMAP are configured per account and credentials are stored encrypted.
         </p>
       </section>
 

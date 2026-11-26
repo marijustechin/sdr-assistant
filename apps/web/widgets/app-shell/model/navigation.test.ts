@@ -65,14 +65,43 @@ describe('getSectionNav', () => {
     );
   });
 
-  it('offers overview/research tabs inside settings', () => {
+  it('offers overview/research/email-account tabs inside settings', () => {
     const expected = [
       { href: '/settings', label: 'Overview' },
       { href: '/settings/research', label: 'Research' },
+      { href: '/settings/email-accounts', label: 'Email accounts' },
     ];
 
-    expect(getSectionNav('/settings')?.items).toEqual(expected);
-    expect(getSectionNav('/settings/research')?.items).toEqual(expected);
+    for (const pathname of [
+      '/settings',
+      '/settings/research',
+      '/settings/email-accounts',
+      '/settings/email-accounts/new',
+      '/settings/email-accounts/account-1/edit',
+    ]) {
+      expect(
+        getSectionNav(pathname)?.items.map(({ href, label }) => ({
+          href,
+          label,
+        })),
+      ).toEqual(expected);
+    }
+  });
+
+  it('marks the email-account tab current on its nested pages', () => {
+    const items = getSectionNav(
+      '/settings/email-accounts/account-1/edit',
+    )?.items;
+    const emailAccounts = items?.find(
+      (item) => item.href === '/settings/email-accounts',
+    );
+
+    expect(emailAccounts?.isActive?.('/settings/email-accounts')).toBe(true);
+    expect(emailAccounts?.isActive?.('/settings/email-accounts/new')).toBe(
+      true,
+    );
+    expect(emailAccounts?.isActive?.('/settings')).toBe(false);
+    expect(emailAccounts?.isActive?.('/settings/research')).toBe(false);
   });
 
   it('has no child navigation where there are no sibling pages', () => {
