@@ -141,9 +141,9 @@ publicly.
 The `email_accounts` table is created by the additive migration
 `20261125230000_add_email_account`; the independent verification columns are added by the
 additive migration `20261126120000_add_email_account_verification`. Both are recorded in the
-repository. The verification migration has not been applied, and real-provider acceptance is
-a separate owner-authorized step after deployment. Until then, connection verification can
-only be exercised against the mock API.
+repository and applied to the local database (10 of 10 migrations). Real-provider connection
+verification is a separate owner-authorized step; it was completed on 2026-11-26 for the
+configured account, so connection verification no longer depends on the mock API.
 
 ### Research flow
 

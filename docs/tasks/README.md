@@ -38,6 +38,7 @@ Rules:
 | SDR-004 | Email Account Management | DONE | [SDR-004-email-account-management.md](SDR-004-email-account-management.md) |
 | SDR-005 | Email Connection Testing and Account Form UX | DONE | [SDR-005-email-connection-testing.md](SDR-005-email-connection-testing.md) |
 | ENV-003 | Restrict local SDR Assistant service exposure | DONE | [ENV-003-local-service-isolation.md](ENV-003-local-service-isolation.md) |
+| SDR-006 | Research Data Reconciliation | DONE | [SDR-006-research-data-reconciliation.md](SDR-006-research-data-reconciliation.md) |
 
 SDR-001, SDR-002 and SDR-003 are `DONE`. SDR-004 is registered; its implementation and all
 mandatory proof gates are complete, the read-only preflight and authorized database
@@ -53,7 +54,10 @@ findings were corrected and the backend proof passed 76/76, the single migration
 after a verified protected backup with the ten-check deployment proof passing, and the owner
 completed real-provider SMTP/IMAP verification and accepted the account-list/form UX.
 ENV-003 is `DONE`: the local frontend, API and PostgreSQL host port were restricted to
-loopback with all 12 checks passing and all data preserved. SDR-006 was not started.
+loopback with all 12 checks passing and all data preserved. SDR-006 was registered on
+2026-11-26, executed as a read-only reconciliation, accepted by the human owner, and its
+follow-up preservation and authorized cleanup were completed on the same day; it is `DONE`.
+SDR-006A is proposed but **not registered and not started**.
 
 ## Notes
 
@@ -247,5 +251,35 @@ loopback with all 12 checks passing and all data preserved. SDR-006 was not star
   implemented; the boundary is the local loopback configuration; production deployment needs
   separate security preparation; the synthetic account remains disabled; encryption-key
   custody and backup retention remain owner responsibilities. SDR-006 was not started.
+- SDR-006 was registered on 2026-11-26 and executed as a strictly read-only reconciliation of the
+  existing research data. The single proof passed 10/10 checks, exit code 0, ending
+  `PASS: SDR-006 research data inventory and preservation verified`. PostgreSQL (`sdr_assistant`)
+  holds 5 products, 42 researches (37 `COMPLETED`, 3 `FAILED`, 2 `INTERRUPTED`), 5/3/5
+  stage-01/02/03 rows and 2 email accounts; all 10 migrations are applied with matching checksums.
+  Final company profiles are persisted in only 3 records (146 profiles) because the normal
+  completion path stores no `companies`; there is no stage-04 table, so one completed run's 77
+  profiles exist only in a git-ignored temp dump. All 21 previously excluded untracked artifacts
+  remain byte-identical to their baseline. No database record, research artifact, application file,
+  test, fixture or `.env` value changed, and no migration, research run, provider call or service
+  restart occurred. The proposed cleanup was **not** executed at that point; the owner's acceptance
+  and the executed follow-up are recorded in the next note. SDR-007 was not started.
+  Evidence: [SDR-006](SDR-006-research-data-reconciliation.md).
+- On 2026-11-26 the human owner accepted the SDR-006 inventory and authorized its follow-up:
+  preserving the eight `ARCHIVE_UNIQUE_DATA` artifacts in a protected archive, and removing only
+  the three named redundant derived files. Executed: archive
+  `C:\Users\msmig\Projektai\_backupsForProjects\sdr-assistant-research-20261126-134911` (8 files,
+  637,240 bytes, manifest SHA-256 `9ece5459…`, inheritance removed with three explicit FullControl
+  grants and zero `CodexSandboxUsers` ACEs, all copies byte-identical to the originals, which were
+  kept); removed `apps/api/tmp-04-summary.json`, `apps/api/tmp-inspect.json` and
+  `apps/api/tmp-inspect-small-run.json` after reconfirming their classification. The remaining
+  previously excluded artifacts drop from 21 to 18 and stay byte-identical; no database record,
+  migration, research source, test, fixture or `.env` value changed. The single compound proof
+  passed 8/8 checks, exit code 0, ending
+  `PASS: SDR-006 historical data preservation and authorized cleanup verified`. The accepted
+  persistence defect is recorded for a separate freeze exception; **SDR-006A — Final Research
+  Result Persistence and Recovery** is proposed but not registered or started, and SDR-007 was not
+  started. SDR-006 is `DONE`. Evidence:
+  [SDR-006 §22–§25](SDR-006-research-data-reconciliation.md#22-historical-research-data-preservation-executed)
+  and Appendix C.
 - Historical records in `ops/current.md`, `ops/backlog.md`, `TODO.md` and `HANDOVER.md` are
   not task authorization or authoritative status.
