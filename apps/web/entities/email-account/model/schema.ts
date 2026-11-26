@@ -12,6 +12,23 @@ export const emailSecurityModeSchema = z.enum(['TLS', 'STARTTLS']);
 
 export type EmailSecurityMode = z.infer<typeof emailSecurityModeSchema>;
 
+/**
+ * A historical connection-test result. `NOT_TESTED` also describes a result
+ * that a configuration change invalidated, and it is what a newly created
+ * account starts with.
+ */
+export const emailVerificationStatusSchema = z.enum([
+  'NOT_TESTED',
+  'VERIFIED',
+  'FAILED',
+]);
+
+export type EmailVerificationStatus = z.infer<
+  typeof emailVerificationStatusSchema
+>;
+
+const verificationFailureCodeSchema = z.string().min(1).nullable();
+
 export const emailAccountSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
@@ -28,6 +45,12 @@ export const emailAccountSchema = z.object({
   imapSecurity: emailSecurityModeSchema,
   imapUsername: z.string().min(1),
   imapPasswordConfigured: z.boolean(),
+  smtpVerificationStatus: emailVerificationStatusSchema,
+  smtpLastCheckedAt: z.string().nullable(),
+  smtpVerificationFailureCode: verificationFailureCodeSchema,
+  imapVerificationStatus: emailVerificationStatusSchema,
+  imapLastCheckedAt: z.string().nullable(),
+  imapVerificationFailureCode: verificationFailureCodeSchema,
   createdAt: z.string(),
   updatedAt: z.string(),
 });
@@ -35,6 +58,71 @@ export const emailAccountSchema = z.object({
 export type EmailAccount = z.infer<typeof emailAccountSchema>;
 
 export const emailAccountListSchema = z.array(emailAccountSchema);
+
+export const emailConnectionProtocolSchema = z.enum(['SMTP', 'IMAP']);
+
+export type EmailConnectionProtocol = z.infer<
+  typeof emailConnectionProtocolSchema
+>;
+
+/**
+ * Wire contract of `POST /email-accounts/:id/test-smtp|test-imap`.
+ *
+ * `CONFIGURATION_CHANGED` is returned when the saved configuration was edited
+ * while the test ran; it is not a persisted result.
+ */
+export const connectionVerificationResultSchema = z.object({
+  accountId: z.string().min(1),
+  protocol: emailConnectionProtocolSchema,
+  result: z.enum(['VERIFIED', 'FAILED', 'CONFIGURATION_CHANGED']),
+  failureCode: verificationFailureCodeSchema,
+  lastCheckedAt: z.string().nullable(),
+  account: emailAccountSchema,
+});
+
+export type ConnectionVerificationResult = z.infer<
+  typeof connectionVerificationResultSchema
+>;
+
+const VERIFICATION_FAILURE_MESSAGES: Record<string, string> = {
+  AUTHENTICATION_FAILED: 'The server rejected the saved username or password.',
+  CONNECTION_TIMEOUT: 'The server did not respond in time.',
+  DNS_FAILURE: 'The host name could not be resolved.',
+  CONNECTION_REFUSED: 'The server refused the connection.',
+  TLS_FAILURE: 'TLS could not be established or the certificate was rejected.',
+  INVALID_CONFIGURATION:
+    'The saved settings cannot be used for a connection test.',
+  UNSAFE_DESTINATION:
+    'The host does not resolve to a public mail-server address.',
+  CREDENTIAL_UNAVAILABLE: 'The saved password could not be decrypted.',
+  CONNECTION_FAILED: 'The connection could not be established.',
+};
+
+/** Safe, human-readable text for one persisted failure code. */
+export function describeVerificationFailure(
+  failureCode: string | null,
+): string | null {
+  if (failureCode === null) {
+    return null;
+  }
+
+  return (
+    VERIFICATION_FAILURE_MESSAGES[failureCode] ?? 'The connection test failed.'
+  );
+}
+
+export function verificationStatusLabel(
+  status: EmailVerificationStatus,
+): string {
+  switch (status) {
+    case 'VERIFIED':
+      return 'Verified';
+    case 'FAILED':
+      return 'Failed';
+    case 'NOT_TESTED':
+      return 'Not tested';
+  }
+}
 
 /** What the create/edit form sends; passwords are absent when unchanged. */
 export type EmailAccountInput = {

@@ -234,3 +234,298 @@ test('shows API failure feedback and stays on the form', async ({ page }) => {
     notifications.getByText('The mailbox provider refused this account.'),
   ).toBeVisible();
 });
+
+test('shows Not tested states for a fresh account', async ({
+  page,
+  request,
+}) => {
+  await seedAccount(request);
+
+  await page.goto('/settings/email-accounts');
+
+  const row = page.locator('.product-item').first();
+
+  await expect(row.getByText(/SMTP · Not tested/)).toBeVisible();
+  await expect(row.getByText(/IMAP · Not tested/)).toBeVisible();
+  await expect(row.getByText('Not checked yet.').first()).toBeVisible();
+  await expect(
+    row.getByRole('button', { name: 'Test connections' }),
+  ).not.toBeDisabled();
+});
+
+test('tests both connections and reports a full success', async ({
+  page,
+  request,
+}) => {
+  await seedAccount(request);
+
+  await page.goto('/settings/email-accounts');
+
+  const row = page.locator('.product-item').first();
+  await row.getByRole('button', { name: 'Test connections' }).click();
+
+  // The action is still running: the button is busy and cannot be clicked
+  // again, which is how a duplicate request is prevented.
+  await expect(row.getByRole('button', { name: 'Testing…' })).toBeDisabled();
+  await expect(
+    row.getByRole('button', { name: 'Test connections' }),
+  ).toHaveCount(0);
+
+  await expect(row.getByText(/SMTP · Verified/)).toBeVisible();
+  await expect(row.getByText(/IMAP · Verified/)).toBeVisible();
+  await expect(row.getByText(/Last checked 2026-/).first()).toBeVisible();
+
+  const notifications = page.getByRole('region', { name: 'Notifications' });
+  await expect(
+    notifications.getByText('Both connections verified'),
+  ).toBeVisible();
+
+  await page.reload();
+  await expect(row.getByText(/SMTP · Verified/)).toBeVisible();
+  await expect(row.getByText(/IMAP · Verified/)).toBeVisible();
+});
+
+test('keeps independent results when SMTP succeeds and IMAP fails', async ({
+  page,
+  request,
+}) => {
+  await seedAccount(request, { imapHost: 'fail.imap.test' });
+
+  await page.goto('/settings/email-accounts');
+
+  const row = page.locator('.product-item').first();
+  await row.getByRole('button', { name: 'Test connections' }).click();
+
+  await expect(row.getByText(/SMTP · Verified/)).toBeVisible();
+  await expect(row.getByText(/IMAP · Failed/)).toBeVisible();
+  await expect(
+    row.getByText('The server rejected the saved username or password.'),
+  ).toBeVisible();
+
+  const notifications = page.getByRole('region', { name: 'Notifications' });
+  await expect(
+    notifications.getByText('One connection verified'),
+  ).toBeVisible();
+});
+
+test('keeps independent results when SMTP fails and IMAP succeeds', async ({
+  page,
+  request,
+}) => {
+  await seedAccount(request, { smtpHost: 'fail.smtp.test' });
+
+  await page.goto('/settings/email-accounts');
+
+  const row = page.locator('.product-item').first();
+  await row.getByRole('button', { name: 'Test connections' }).click();
+
+  await expect(row.getByText(/SMTP · Failed/)).toBeVisible();
+  await expect(row.getByText(/IMAP · Verified/)).toBeVisible();
+
+  const notifications = page.getByRole('region', { name: 'Notifications' });
+  await expect(
+    notifications.getByText('One connection verified'),
+  ).toBeVisible();
+});
+
+test('reports a failure when both protocols fail', async ({
+  page,
+  request,
+}) => {
+  await seedAccount(request, {
+    smtpHost: 'fail.smtp.test',
+    imapHost: 'fail.imap.test',
+  });
+
+  await page.goto('/settings/email-accounts');
+
+  const row = page.locator('.product-item').first();
+  await row.getByRole('button', { name: 'Test connections' }).click();
+
+  await expect(row.getByText(/SMTP · Failed/)).toBeVisible();
+  await expect(row.getByText(/IMAP · Failed/)).toBeVisible();
+
+  const notifications = page.getByRole('region', { name: 'Notifications' });
+  await expect(
+    notifications.getByText('Connection tests failed'),
+  ).toBeVisible();
+});
+
+test('does not test a disabled account', async ({ page, request }) => {
+  await seedAccount(request, { enabled: false });
+
+  await page.goto('/settings/email-accounts');
+
+  const row = page.locator('.product-item').first();
+
+  await expect(row.getByText('Disabled', { exact: true })).toBeVisible();
+  await expect(
+    row.getByRole('button', { name: 'Test connections' }),
+  ).toBeDisabled();
+  await expect(row.getByText(/SMTP · Not tested/)).toBeVisible();
+  await expect(row.getByText(/IMAP · Not tested/)).toBeVisible();
+});
+
+test('tests each protocol from the edit form', async ({ page, request }) => {
+  await seedAccount(request);
+
+  await page.goto('/settings/email-accounts');
+  await page.getByRole('link', { name: 'Edit' }).click();
+
+  await page.getByRole('button', { name: 'Test SMTP connection' }).click();
+
+  await expect(page.getByText(/SMTP · Verified/)).toBeVisible();
+  await expect(page.getByText(/IMAP · Not tested/)).toBeVisible();
+
+  await page.getByRole('button', { name: 'Test IMAP connection' }).click();
+
+  await expect(page.getByText(/IMAP · Verified/)).toBeVisible();
+  await expect(page.getByText(/SMTP · Verified/)).toBeVisible();
+});
+
+test('requires saving before a new or modified account can be tested', async ({
+  page,
+}) => {
+  await openNewAccountForm(page);
+
+  await expect(
+    page.getByRole('button', { name: 'Test SMTP connection' }),
+  ).toBeDisabled();
+  await expect(
+    page.getByText('Save this account before testing the connections.'),
+  ).toBeVisible();
+
+  await fillAccountForm(page);
+  await page.getByRole('button', { name: 'Save account' }).click();
+
+  await expect(page).toHaveURL(/\/settings\/email-accounts$/);
+  await page.getByRole('link', { name: 'Edit' }).click();
+
+  const smtpTest = page.getByRole('button', {
+    name: 'Test SMTP connection',
+  });
+
+  await expect(smtpTest).not.toBeDisabled();
+
+  await page.getByLabel('Sender name').fill('Edited Sender');
+
+  await expect(smtpTest).toBeDisabled();
+  await expect(
+    page.getByText('Save your changes before testing the connections.'),
+  ).toBeVisible();
+
+  await page.getByRole('button', { name: 'Save account' }).click();
+
+  await expect(page).toHaveURL(/\/settings\/email-accounts$/);
+  await page.getByRole('link', { name: 'Edit' }).click();
+
+  await expect(
+    page.getByRole('button', { name: 'Test SMTP connection' }),
+  ).not.toBeDisabled();
+});
+
+test('invalidates only the verification of the changed protocol', async ({
+  page,
+  request,
+}) => {
+  const { id } = await seedAccount(request);
+
+  await request.post(`${API_URL}/email-accounts/${id}/test-smtp`);
+  await request.post(`${API_URL}/email-accounts/${id}/test-imap`);
+
+  await page.goto('/settings/email-accounts');
+  await expect(page.getByText(/SMTP · Verified/)).toBeVisible();
+  await expect(page.getByText(/IMAP · Verified/)).toBeVisible();
+
+  await page.getByRole('link', { name: 'Edit' }).click();
+  await page.getByLabel('SMTP host').fill('smtp.changed.test');
+  await page.getByRole('button', { name: 'Save account' }).click();
+
+  await expect(page).toHaveURL(/\/settings\/email-accounts$/);
+
+  const row = page.locator('.product-item').first();
+
+  await expect(row.getByText(/SMTP · Not tested/)).toBeVisible();
+  await expect(row.getByText(/IMAP · Verified/)).toBeVisible();
+});
+
+test('initializes usernames from the email address without overwriting custom values', async ({
+  page,
+}) => {
+  await openNewAccountForm(page);
+
+  await page.getByLabel('Email address').fill('first.mailbox@example.test');
+
+  await expect(page.getByLabel('SMTP username')).toHaveValue(
+    'first.mailbox@example.test',
+  );
+  await expect(page.getByLabel('IMAP username')).toHaveValue(
+    'first.mailbox@example.test',
+  );
+
+  await page.getByLabel('SMTP username').fill('custom-smtp-user');
+  await page.getByLabel('Email address').fill('second.mailbox@example.test');
+
+  await expect(page.getByLabel('SMTP username')).toHaveValue(
+    'custom-smtp-user',
+  );
+  await expect(page.getByLabel('IMAP username')).toHaveValue(
+    'second.mailbox@example.test',
+  );
+});
+
+test('lays the form out in two columns on wide screens and stacks it on narrow screens', async ({
+  page,
+}) => {
+  await openNewAccountForm(page);
+
+  const smtpCard = page.locator('section').filter({
+    has: page.getByRole('heading', { name: 'Outgoing mail (SMTP)' }),
+  });
+  const imapCard = page.locator('section').filter({
+    has: page.getByRole('heading', { name: 'Incoming mail (IMAP)' }),
+  });
+
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.waitForTimeout(100);
+
+  const wideSmtp = await smtpCard.boundingBox();
+  const wideImap = await imapCard.boundingBox();
+  const wideSender = await page.getByLabel('Sender name').boundingBox();
+  const wideEmail = await page.getByLabel('Email address').boundingBox();
+
+  expect(wideSmtp).not.toBeNull();
+  expect(wideImap).not.toBeNull();
+  expect(wideSender).not.toBeNull();
+  expect(wideEmail).not.toBeNull();
+
+  if (
+    wideSmtp === null ||
+    wideImap === null ||
+    wideSender === null ||
+    wideEmail === null
+  ) {
+    throw new Error('Expected a rendered form');
+  }
+
+  expect(wideImap.x).toBeGreaterThan(wideSmtp.x + 100);
+  expect(Math.abs(wideImap.y - wideSmtp.y)).toBeLessThan(40);
+  expect(wideEmail.x).toBeGreaterThan(wideSender.x + 100);
+  expect(Math.abs(wideEmail.y - wideSender.y)).toBeLessThan(40);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.waitForTimeout(100);
+
+  const narrowSmtp = await smtpCard.boundingBox();
+  const narrowImap = await imapCard.boundingBox();
+
+  expect(narrowSmtp).not.toBeNull();
+  expect(narrowImap).not.toBeNull();
+
+  if (narrowSmtp === null || narrowImap === null) {
+    throw new Error('Expected a rendered form');
+  }
+
+  expect(narrowImap.y).toBeGreaterThan(narrowSmtp.y + 100);
+  expect(Math.abs(narrowImap.x - narrowSmtp.x)).toBeLessThan(5);
+});

@@ -1,7 +1,11 @@
 import Link from 'next/link';
 
 import { fetchEmailAccounts } from '@/entities/email-account';
-import { EmailAccountToggle } from '@/features/manage-email-account';
+import {
+  EmailAccountTestConnectionsButton,
+  EmailAccountToggle,
+  EmailAccountVerificationStatus,
+} from '@/features/manage-email-account';
 import { formatDateTime } from '@/shared/lib/format';
 
 export async function EmailAccountsPage() {
@@ -68,6 +72,21 @@ export async function EmailAccountsPage() {
                     {account.imapPort} {account.imapSecurity} · Updated{' '}
                     {formatDateTime(account.updatedAt)}
                   </p>
+
+                  <div className="mt-2 flex flex-wrap gap-x-6 gap-y-2">
+                    <EmailAccountVerificationStatus
+                      protocol="SMTP"
+                      status={account.smtpVerificationStatus}
+                      lastCheckedAt={account.smtpLastCheckedAt}
+                      failureCode={account.smtpVerificationFailureCode}
+                    />
+                    <EmailAccountVerificationStatus
+                      protocol="IMAP"
+                      status={account.imapVerificationStatus}
+                      lastCheckedAt={account.imapLastCheckedAt}
+                      failureCode={account.imapVerificationFailureCode}
+                    />
+                  </div>
                 </div>
 
                 <div className="flex shrink-0 flex-col items-end gap-2">
@@ -78,7 +97,11 @@ export async function EmailAccountsPage() {
                     {account.enabled ? 'Enabled' : 'Disabled'}
                   </span>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    <EmailAccountTestConnectionsButton
+                      accountId={account.id}
+                      enabled={account.enabled}
+                    />
                     <Link
                       href={`/settings/email-accounts/${encodeURIComponent(account.id)}/edit`}
                       className="button small secondary"

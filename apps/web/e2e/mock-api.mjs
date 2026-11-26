@@ -157,6 +157,12 @@ function emailAccount(overrides) {
     imapSecurity: 'TLS',
     imapUsername: 'imap-user',
     imapPasswordConfigured: true,
+    smtpVerificationStatus: 'NOT_TESTED',
+    smtpLastCheckedAt: null,
+    smtpVerificationFailureCode: null,
+    imapVerificationStatus: 'NOT_TESTED',
+    imapLastCheckedAt: null,
+    imapVerificationFailureCode: null,
     createdAt: CREATED_AT,
     updatedAt: CREATED_AT,
     ...overrides,
@@ -188,6 +194,16 @@ function createEmailAccount(body) {
 
 function updateEmailAccount(existing, body) {
   const updated = { ...existing, updatedAt: new Date().toISOString() };
+  const smtpConnectionChanged = connectionSettingsChanged(
+    existing,
+    body,
+    'smtp',
+  );
+  const imapConnectionChanged = connectionSettingsChanged(
+    existing,
+    body,
+    'imap',
+  );
 
   for (const field of EMAIL_ACCOUNT_FIELDS) {
     if (Object.hasOwn(body, field)) {
@@ -203,9 +219,74 @@ function updateEmailAccount(existing, body) {
     updated.imapPasswordConfigured = true;
   }
 
+  // A protocol configuration change invalidates only that protocol's result,
+  // exactly like the API. An empty password field changes nothing.
+  if (smtpConnectionChanged) {
+    updated.smtpVerificationStatus = 'NOT_TESTED';
+    updated.smtpLastCheckedAt = null;
+    updated.smtpVerificationFailureCode = null;
+  }
+
+  if (imapConnectionChanged) {
+    updated.imapVerificationStatus = 'NOT_TESTED';
+    updated.imapLastCheckedAt = null;
+    updated.imapVerificationFailureCode = null;
+  }
+
   emailAccounts.set(updated.id, updated);
 
   return updated;
+}
+
+function connectionSettingsChanged(existing, body, prefix) {
+  const fields = [
+    `${prefix}Host`,
+    `${prefix}Port`,
+    `${prefix}Security`,
+    `${prefix}Username`,
+  ];
+  const fieldChanged = fields.some(
+    (field) => Object.hasOwn(body, field) && body[field] !== existing[field],
+  );
+  const passwordChanged =
+    typeof body[`${prefix}Password`] === 'string' &&
+    body[`${prefix}Password`] !== '';
+
+  return fieldChanged || passwordChanged;
+}
+
+const CONNECTION_TEST_DELAY_MS = Number(
+  process.env.MOCK_CONNECTION_TEST_DELAY_MS ?? 600,
+);
+const ALLOWED_TEST_PORTS = { SMTP: [465, 587], IMAP: [993, 143] };
+
+/** Deterministic verification outcome used by the rendered scenarios. */
+function connectionOutcome(account, protocol) {
+  const prefix = protocol === 'SMTP' ? 'smtp' : 'imap';
+  const host = String(account[`${prefix}Host`] ?? '');
+  const port = account[`${prefix}Port`];
+
+  if (!ALLOWED_TEST_PORTS[protocol].includes(port)) {
+    return { status: 'FAILED', failureCode: 'INVALID_CONFIGURATION' };
+  }
+
+  if (host.includes('fail')) {
+    return { status: 'FAILED', failureCode: 'AUTHENTICATION_FAILED' };
+  }
+
+  if (host.includes('timeout')) {
+    return { status: 'FAILED', failureCode: 'CONNECTION_TIMEOUT' };
+  }
+
+  if (host.includes('unsafe')) {
+    return { status: 'FAILED', failureCode: 'UNSAFE_DESTINATION' };
+  }
+
+  return { status: 'VERIFIED', failureCode: null };
+}
+
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function reset() {
@@ -399,6 +480,63 @@ const server = createServer(async (request, response) => {
     }
 
     return send(response, 201, createEmailAccount(body));
+  }
+
+  const connectionTestMatch =
+    /^\/email-accounts\/([^/]+)\/test-(smtp|imap)$/.exec(path);
+
+  if (connectionTestMatch !== null && method === 'POST') {
+    const id = decodeURIComponent(connectionTestMatch[1]);
+    const protocol = connectionTestMatch[2] === 'smtp' ? 'SMTP' : 'IMAP';
+    const found = emailAccounts.get(id);
+
+    if (found === undefined) {
+      return notFound(response, 'Email account not found');
+    }
+
+    if (!found.enabled) {
+      return send(response, 409, {
+        statusCode: 409,
+        message: 'Disabled email accounts cannot be tested.',
+        error: 'Conflict',
+      });
+    }
+
+    if (CONNECTION_TEST_DELAY_MS > 0) {
+      await delay(CONNECTION_TEST_DELAY_MS);
+    }
+
+    // SMTP and IMAP are tested concurrently. Re-read the current account after
+    // the delay and merge only this protocol's verification fields: a complete
+    // snapshot taken before the delay would overwrite the other protocol's
+    // fresh result.
+    const current = emailAccounts.get(id);
+
+    if (current === undefined) {
+      return notFound(response, 'Email account not found');
+    }
+
+    const outcome = connectionOutcome(current, protocol);
+    const now = new Date().toISOString();
+    const prefix = protocol === 'SMTP' ? 'smtp' : 'imap';
+    const updated = {
+      ...current,
+      [`${prefix}VerificationStatus`]: outcome.status,
+      [`${prefix}LastCheckedAt`]: now,
+      [`${prefix}VerificationFailureCode`]: outcome.failureCode,
+      updatedAt: now,
+    };
+
+    emailAccounts.set(id, updated);
+
+    return send(response, 200, {
+      accountId: id,
+      protocol,
+      result: outcome.status,
+      failureCode: outcome.failureCode,
+      lastCheckedAt: now,
+      account: updated,
+    });
   }
 
   const emailAccountMatch = /^\/email-accounts\/([^/]+)$/.exec(path);

@@ -91,6 +91,7 @@ Or run one side: `npm run dev:api` / `npm run dev:web`.
 | `GET /settings` / `PATCH /settings` | Settings registry and validated updates |
 | `GET /email-accounts` / `GET /email-accounts/:id` | Configured email accounts (no credentials) |
 | `POST /email-accounts` / `PATCH /email-accounts/:id` | Create/update an email account, including enable/disable |
+| `POST /email-accounts/:id/test-smtp` / `POST /email-accounts/:id/test-imap` | Verify the saved SMTP or IMAP configuration (no sending, no mailbox access) |
 
 The web app reads `API_URL` (default `http://localhost:4000`). The API has no CORS;
 browser requests go through same-origin Next.js route handlers.
@@ -99,8 +100,24 @@ browser requests go through same-origin Next.js route handlers.
 
 **Settings → Email accounts** manages the mailboxes that future outreach will use. Each
 account has its own sender identity, SMTP settings and IMAP settings. Accounts can be
-created, edited, enabled and disabled; there is no hard deletion, and this task adds no
-sending, connection test or incoming-mail synchronization.
+created, edited, enabled and disabled; there is no hard deletion, no sending and no
+incoming-mail synchronization.
+
+Each protocol can be tested from the account list or the edit form. A test uses only the
+saved configuration and requires a connection, TLS negotiation and authentication before it
+reports **Verified**. Verification never sends an email and never opens, lists or reads a
+mailbox. SMTP tests accept only ports 465 and 587; IMAP tests only 993 and 143. The
+destination must resolve to a public address: loopback, private, link-local, reserved and
+other non-public addresses are rejected, and the client connects to the validated address
+while still validating the certificate against the configured host name.
+
+SMTP and IMAP verification results are stored independently: `NOT_TESTED`, `VERIFIED` or
+`FAILED`, with the last-checked time and a safe failure code (for example
+`AUTHENTICATION_FAILED`, `CONNECTION_TIMEOUT`, `DNS_FAILURE` or `TLS_FAILURE`). The API
+returns no raw provider response. Changing one protocol's host, port, security, username or
+password resets only that protocol to `NOT_TESTED`; metadata edits and an empty password
+field leave both results untouched. A result that arrives after its configuration changed is
+discarded. Disabled accounts cannot be tested.
 
 Passwords are encrypted with AES-256-GCM before they are written to PostgreSQL and are
 never returned by the API — responses only carry `smtpPasswordConfigured` /
@@ -117,12 +134,16 @@ node -e "process.stdout.write(require('node:crypto').randomBytes(32).toString('b
 There is no default key and no plaintext fallback, so creating or updating an account fails
 safely while the variable is missing or invalid. The value must never be committed.
 
-The application has no end-user authentication yet. Email-account management therefore
-belongs to the trusted local deployment only and must not be exposed publicly.
+The application has no end-user authentication yet. Email-account management and connection
+testing therefore belong to the trusted local deployment only and must not be exposed
+publicly.
 
 The `email_accounts` table is created by the additive migration
-`20261125230000_add_email_account`. That migration was not applied, and the account UI needs
-it (plus the encryption key) before it can persist real accounts.
+`20261125230000_add_email_account`; the independent verification columns are added by the
+additive migration `20261126120000_add_email_account_verification`. Both are recorded in the
+repository. The verification migration has not been applied, and real-provider acceptance is
+a separate owner-authorized step after deployment. Until then, connection verification can
+only be exercised against the mock API.
 
 ### Research flow
 

@@ -13,6 +13,10 @@ import {
 } from './credential-encryption.js';
 import type { CreateEmailAccountDto } from './dto/create-email-account.dto.js';
 import type { UpdateEmailAccountDto } from './dto/update-email-account.dto.js';
+import type {
+  EmailVerificationFailureCode,
+  EmailVerificationStatus,
+} from './email-connection.constants.js';
 import {
   toEmailAccountResponse,
   type EmailAccountResponse,
@@ -53,6 +57,12 @@ export type EmailAccountUpdateData = {
   imapSecurity?: EmailAccountRow['imapSecurity'];
   imapUsername?: string;
   imapPasswordEncrypted?: string;
+  smtpVerificationStatus?: EmailVerificationStatus;
+  smtpLastCheckedAt?: Date | null;
+  smtpVerificationFailureCode?: EmailVerificationFailureCode | null;
+  imapVerificationStatus?: EmailVerificationStatus;
+  imapLastCheckedAt?: Date | null;
+  imapVerificationFailureCode?: EmailVerificationFailureCode | null;
 };
 
 @Injectable()
@@ -104,6 +114,12 @@ export class EmailAccountsService {
   /**
    * Partial update. Password columns appear in the write only when a new
    * password was supplied, so editing settings retains the stored credentials.
+   *
+   * A change to one protocol's connection settings (host, port, security,
+   * username or password) resets only that protocol's verification to
+   * `NOT_TESTED` and clears its timestamp and failure code, because the old
+   * result described the old configuration. Metadata edits (name, sender,
+   * address, enabled) and an empty password field leave both results untouched.
    */
   async update(
     id: string,
@@ -174,6 +190,18 @@ export class EmailAccountsService {
       );
     }
 
+    if (smtpConfigurationChanged(existing, dto)) {
+      data.smtpVerificationStatus = 'NOT_TESTED';
+      data.smtpLastCheckedAt = null;
+      data.smtpVerificationFailureCode = null;
+    }
+
+    if (imapConfigurationChanged(existing, dto)) {
+      data.imapVerificationStatus = 'NOT_TESTED';
+      data.imapLastCheckedAt = null;
+      data.imapVerificationFailureCode = null;
+    }
+
     if (Object.keys(data).length === 0) {
       return toEmailAccountResponse(existing);
     }
@@ -216,4 +244,34 @@ export class EmailAccountsService {
       );
     }
   }
+}
+
+function smtpConfigurationChanged(
+  existing: EmailAccountRow,
+  dto: UpdateEmailAccountDto,
+): boolean {
+  return (
+    (dto.smtpHost !== undefined && dto.smtpHost !== existing.smtpHost) ||
+    (dto.smtpPort !== undefined && dto.smtpPort !== existing.smtpPort) ||
+    (dto.smtpSecurity !== undefined &&
+      dto.smtpSecurity !== existing.smtpSecurity) ||
+    (dto.smtpUsername !== undefined &&
+      dto.smtpUsername !== existing.smtpUsername) ||
+    dto.smtpPassword !== undefined
+  );
+}
+
+function imapConfigurationChanged(
+  existing: EmailAccountRow,
+  dto: UpdateEmailAccountDto,
+): boolean {
+  return (
+    (dto.imapHost !== undefined && dto.imapHost !== existing.imapHost) ||
+    (dto.imapPort !== undefined && dto.imapPort !== existing.imapPort) ||
+    (dto.imapSecurity !== undefined &&
+      dto.imapSecurity !== existing.imapSecurity) ||
+    (dto.imapUsername !== undefined &&
+      dto.imapUsername !== existing.imapUsername) ||
+    dto.imapPassword !== undefined
+  );
 }

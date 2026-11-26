@@ -105,10 +105,21 @@ enum EmailSecurityMode {
   STARTTLS
 }
 
+/// Outcome of the last saved-configuration connection test for one mail
+/// protocol. `NOT_TESTED` also means that a configuration change invalidated an
+/// earlier result.
+enum EmailVerificationStatus {
+  NOT_TESTED
+  VERIFIED
+  FAILED
+}
+
 /// One independently configurable mailbox. SMTP and IMAP credentials are
 /// stored separately as authenticated ciphertext (AES-256-GCM, key from
 /// `EMAIL_ACCOUNT_ENCRYPTION_KEY`); no plaintext credential is ever persisted
-/// or returned. There is intentionally no relation to research yet.
+/// or returned. The verification fields below are independent per protocol:
+/// changing one protocol's configuration resets only that protocol's result.
+/// There is intentionally no relation to research yet.
 model EmailAccount {
   id           String  @id @default(cuid())
   name         String
@@ -127,6 +138,16 @@ model EmailAccount {
   imapSecurity          EmailSecurityMode
   imapUsername          String
   imapPasswordEncrypted String
+
+  /// Result of the last SMTP connection test, never of a sending attempt.
+  smtpVerificationStatus      EmailVerificationStatus @default(NOT_TESTED)
+  smtpLastCheckedAt           DateTime?
+  smtpVerificationFailureCode String?
+
+  /// Result of the last IMAP connection test, never of a mailbox operation.
+  imapVerificationStatus      EmailVerificationStatus @default(NOT_TESTED)
+  imapLastCheckedAt           DateTime?
+  imapVerificationFailureCode String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

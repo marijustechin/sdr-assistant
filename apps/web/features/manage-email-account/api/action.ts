@@ -5,7 +5,10 @@ import { revalidatePath } from 'next/cache';
 import {
   createEmailAccount as createEmailAccountRequest,
   readEmailAccountForm,
+  testEmailAccountConnection as testEmailAccountConnectionRequest,
   updateEmailAccount as updateEmailAccountRequest,
+  type ConnectionVerificationResult,
+  type EmailConnectionProtocol,
 } from '@/entities/email-account';
 
 export type EmailAccountFormState =
@@ -19,6 +22,27 @@ export type EmailAccountFormState =
 
 export type EmailAccountToggleResult =
   { ok: true } | { ok: false; message: string };
+
+/**
+ * One protocol test as the UI needs it. `ok` says the request itself completed;
+ * the historical result is in `result` and may be `FAILED` or
+ * `CONFIGURATION_CHANGED`.
+ */
+export type EmailConnectionTestOutcome =
+  | {
+      readonly protocol: EmailConnectionProtocol;
+      readonly ok: true;
+      readonly result: ConnectionVerificationResult;
+    }
+  | {
+      readonly protocol: EmailConnectionProtocol;
+      readonly ok: false;
+      readonly message: string;
+    };
+
+export type EmailConnectionTestSummary = {
+  readonly outcomes: readonly EmailConnectionTestOutcome[];
+};
 
 const ACCOUNTS_PATH = '/settings/email-accounts';
 
@@ -98,4 +122,54 @@ export async function setEmailAccountEnabled(
   revalidatePath(ACCOUNTS_PATH);
 
   return { ok: true };
+}
+
+async function runProtocolTest(
+  id: string,
+  protocol: EmailConnectionProtocol,
+): Promise<EmailConnectionTestOutcome> {
+  const result = await testEmailAccountConnectionRequest(id, protocol);
+
+  if (!result.ok) {
+    return { protocol, ok: false, message: result.message };
+  }
+
+  return { protocol, ok: true, result: result.data };
+}
+
+/**
+ * Tests one saved protocol. A stored test result changed even when the
+ * verification itself failed, so the page is revalidated on every completed
+ * request.
+ */
+export async function testEmailAccountConnectionAction(
+  id: string,
+  protocol: EmailConnectionProtocol,
+): Promise<EmailConnectionTestSummary> {
+  const outcome = await runProtocolTest(id, protocol);
+
+  if (outcome.ok) {
+    revalidatePath(ACCOUNTS_PATH);
+  }
+
+  return { outcomes: [outcome] };
+}
+
+/**
+ * Tests both saved protocols. The two requests are independent, so one
+ * protocol failing never prevents the other from being checked.
+ */
+export async function testAllEmailAccountConnectionsAction(
+  id: string,
+): Promise<EmailConnectionTestSummary> {
+  const outcomes = await Promise.all([
+    runProtocolTest(id, 'SMTP'),
+    runProtocolTest(id, 'IMAP'),
+  ]);
+
+  if (outcomes.some((outcome) => outcome.ok)) {
+    revalidatePath(ACCOUNTS_PATH);
+  }
+
+  return { outcomes };
 }

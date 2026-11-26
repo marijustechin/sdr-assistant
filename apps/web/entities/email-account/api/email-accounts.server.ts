@@ -5,10 +5,13 @@ import type { ApiResult } from '@/shared/api/http';
 import { apiUrl } from '@/shared/config/env';
 
 import {
+  connectionVerificationResultSchema,
   emailAccountListSchema,
   emailAccountSchema,
+  type ConnectionVerificationResult,
   type EmailAccount,
   type EmailAccountInput,
+  type EmailConnectionProtocol,
 } from '../model/schema';
 
 export function fetchEmailAccounts(): Promise<ApiResult<EmailAccount[]>> {
@@ -42,5 +45,22 @@ export function updateEmailAccount(
     `${apiUrl}/email-accounts/${encodeURIComponent(id)}`,
     input,
     emailAccountSchema,
+  );
+}
+
+/**
+ * Tests the saved configuration of one protocol. The request carries no
+ * destination and no credential: the API uses the stored values only.
+ */
+export function testEmailAccountConnection(
+  id: string,
+  protocol: EmailConnectionProtocol,
+): Promise<ApiResult<ConnectionVerificationResult>> {
+  const path = protocol === 'SMTP' ? 'test-smtp' : 'test-imap';
+
+  return postJson(
+    `${apiUrl}/email-accounts/${encodeURIComponent(id)}/${path}`,
+    undefined,
+    connectionVerificationResultSchema,
   );
 }

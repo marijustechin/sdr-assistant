@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  connectionVerificationResultSchema,
+  describeVerificationFailure,
   emailAccountListSchema,
   emailAccountSchema,
   readEmailAccountForm,
+  verificationStatusLabel,
 } from './schema';
 
 const ACCOUNT_RESPONSE = {
@@ -22,6 +25,12 @@ const ACCOUNT_RESPONSE = {
   imapSecurity: 'TLS',
   imapUsername: 'imap-user',
   imapPasswordConfigured: true,
+  smtpVerificationStatus: 'NOT_TESTED',
+  smtpLastCheckedAt: null,
+  smtpVerificationFailureCode: null,
+  imapVerificationStatus: 'NOT_TESTED',
+  imapLastCheckedAt: null,
+  imapVerificationFailureCode: null,
   createdAt: '2026-11-25T10:00:00.000Z',
   updatedAt: '2026-11-25T10:00:00.000Z',
 };
@@ -83,6 +92,72 @@ describe('email-account response schemas', () => {
 
     expect(parsed).toHaveLength(2);
     expect(parsed[1].enabled).toBe(false);
+  });
+
+  it('parses independent verification states and timestamps', () => {
+    const parsed = emailAccountSchema.parse({
+      ...ACCOUNT_RESPONSE,
+      smtpVerificationStatus: 'VERIFIED',
+      smtpLastCheckedAt: '2026-11-26T09:15:00.000Z',
+      imapVerificationStatus: 'FAILED',
+      imapLastCheckedAt: '2026-11-26T09:16:00.000Z',
+      imapVerificationFailureCode: 'AUTHENTICATION_FAILED',
+    });
+
+    expect(parsed.smtpVerificationStatus).toBe('VERIFIED');
+    expect(parsed.smtpLastCheckedAt).toBe('2026-11-26T09:15:00.000Z');
+    expect(parsed.smtpVerificationFailureCode).toBeNull();
+    expect(parsed.imapVerificationStatus).toBe('FAILED');
+    expect(parsed.imapVerificationFailureCode).toBe('AUTHENTICATION_FAILED');
+  });
+
+  it('rejects an unknown verification status', () => {
+    expect(
+      emailAccountSchema.safeParse({
+        ...ACCOUNT_RESPONSE,
+        smtpVerificationStatus: 'CONNECTED',
+      }).success,
+    ).toBe(false);
+  });
+
+  it('parses a verification result and keeps credential fields out', () => {
+    const parsed = connectionVerificationResultSchema.parse({
+      accountId: 'account-1',
+      protocol: 'SMTP',
+      result: 'FAILED',
+      failureCode: 'CONNECTION_TIMEOUT',
+      lastCheckedAt: '2026-11-26T09:20:00.000Z',
+      account: {
+        ...ACCOUNT_RESPONSE,
+        smtpVerificationStatus: 'FAILED',
+        smtpLastCheckedAt: '2026-11-26T09:20:00.000Z',
+        smtpVerificationFailureCode: 'CONNECTION_TIMEOUT',
+        smtpPasswordEncrypted: 'v1.iv.tag.ciphertext',
+      },
+    });
+
+    expect(parsed.result).toBe('FAILED');
+    expect(parsed.failureCode).toBe('CONNECTION_TIMEOUT');
+    expect('smtpPasswordEncrypted' in parsed.account).toBe(false);
+  });
+
+  it('describes only known failure codes', () => {
+    expect(describeVerificationFailure('AUTHENTICATION_FAILED')).toContain(
+      'rejected the saved username or password',
+    );
+    expect(describeVerificationFailure('CONNECTION_TIMEOUT')).toContain(
+      'did not respond',
+    );
+    expect(describeVerificationFailure('SOMETHING_NEW')).toBe(
+      'The connection test failed.',
+    );
+    expect(describeVerificationFailure(null)).toBeNull();
+  });
+
+  it('labels the three verification states', () => {
+    expect(verificationStatusLabel('NOT_TESTED')).toBe('Not tested');
+    expect(verificationStatusLabel('VERIFIED')).toBe('Verified');
+    expect(verificationStatusLabel('FAILED')).toBe('Failed');
   });
 });
 
