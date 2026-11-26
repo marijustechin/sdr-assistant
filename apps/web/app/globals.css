@@ -805,6 +805,524 @@
     margin-bottom: 0.35rem;
   }
 
+  /* --------------------------------------------------- research workspace */
+
+  .research-status-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.6rem;
+    margin-top: 0.65rem;
+  }
+
+  .research-status-message {
+    margin: 0.5rem 0 0;
+  }
+
+  .research-header-actions {
+    justify-content: flex-end;
+    margin-top: 1rem;
+  }
+
+  .metric-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+    margin: 1.25rem 0 0;
+    padding: 0;
+  }
+
+  .metric {
+    padding: 0.85rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .metric-label {
+    color: var(--muted);
+    font-size: 0.78rem;
+    font-weight: 600;
+  }
+
+  .metric-value {
+    margin: 0.15rem 0 0;
+    font-size: 1.35rem;
+    font-weight: 650;
+    line-height: 1.2;
+  }
+
+  .metric-note {
+    display: block;
+    margin-top: 0.15rem;
+    color: var(--muted);
+    font-size: 0.72rem;
+    font-weight: 500;
+  }
+
+  .research-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 1.25rem;
+  }
+
+  .research-tab-list {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 0.15rem;
+    padding: 0.25rem;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .research-tab {
+    padding: 0.4rem 0.85rem;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--muted);
+    font: inherit;
+    font-size: 0.86rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .research-tab:hover {
+    background: var(--subtle);
+    color: var(--text);
+  }
+
+  .research-tab[aria-selected='true'] {
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+
+  .research-tab-count {
+    color: var(--muted);
+    font-weight: 500;
+  }
+
+  .research-tab[aria-selected='true'] .research-tab-count {
+    color: inherit;
+  }
+
+  .research-tab.planned {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.4rem 0.65rem;
+    border: 1px dashed var(--border-strong);
+    border-radius: 999px;
+    color: var(--muted);
+    font-size: 0.8rem;
+    cursor: default;
+  }
+
+  .research-tab-note {
+    font-size: 0.66rem;
+    font-weight: 650;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .research-panel {
+    margin-top: 1.25rem;
+  }
+
+  .filter-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 0.75rem;
+    margin-top: 1rem;
+  }
+
+  .filter-row .field {
+    flex: 1 1 9.5rem;
+    min-width: 0;
+  }
+
+  .filter-row .filter-search {
+    flex: 2 1 18rem;
+  }
+
+  .list-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.65rem;
+    margin-top: 1rem;
+  }
+
+  .link-button {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--accent);
+    font: inherit;
+    font-weight: 600;
+    text-decoration: underline;
+    cursor: pointer;
+  }
+
+  .research-list-item {
+    flex-wrap: wrap;
+  }
+
+  .company-list,
+  .contact-list,
+  .source-list,
+  .contact-values,
+  .offer-list,
+  .evidence-list,
+  .price-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin: 0.35rem 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .company-list {
+    gap: 0.75rem;
+    margin-top: 1rem;
+  }
+
+  .company-card {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--surface);
+  }
+
+  .company-card > summary {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+    padding: 0.9rem 1rem;
+    cursor: pointer;
+    list-style: none;
+  }
+
+  .company-card > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .company-card > summary::marker {
+    content: '';
+  }
+
+  .company-card[open] > summary {
+    border-bottom: 1px solid var(--border);
+  }
+
+  .company-summary-main {
+    min-width: 0;
+  }
+
+  .company-name {
+    display: block;
+    font-weight: 650;
+    overflow-wrap: anywhere;
+  }
+
+  .company-domain {
+    display: block;
+    color: var(--muted);
+    font-size: 0.8rem;
+    overflow-wrap: anywhere;
+  }
+
+  .company-summary-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .company-chevron {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted);
+    transition: transform 120ms ease;
+  }
+
+  .company-card[open] .company-chevron {
+    transform: rotate(180deg);
+  }
+
+  .company-primary-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.15rem;
+  }
+
+  .company-body {
+    display: flex;
+    flex-direction: column;
+    gap: 1.15rem;
+    padding: 1rem;
+  }
+
+  .company-section-title {
+    margin: 0;
+    font-size: 0.92rem;
+  }
+
+  .company-subtitle {
+    margin: 0.75rem 0 0.15rem;
+    color: var(--text);
+    font-size: 0.78rem;
+    font-weight: 650;
+  }
+
+  .data-list {
+    grid-template-columns: 1fr;
+    gap: 0.3rem 1rem;
+    margin: 0.35rem 0 0;
+    font-size: 0.86rem;
+  }
+
+  .data-list dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .offer-list {
+    margin-top: 0.5rem;
+  }
+
+  .offer-card {
+    padding: 0.75rem 0.85rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+  }
+
+  .offer-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.45rem;
+  }
+
+  .offer-title {
+    margin: 0;
+    font-weight: 650;
+    overflow-wrap: anywhere;
+  }
+
+  .evidence-card,
+  .price-card,
+  .contact-value {
+    padding: 0.45rem 0.6rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--subtle);
+    font-size: 0.85rem;
+    overflow-wrap: anywhere;
+  }
+
+  .price-value {
+    margin: 0;
+    font-weight: 650;
+  }
+
+  .evidence-quote {
+    margin: 0.35rem 0 0;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
+  .market-note {
+    margin-top: 0.5rem;
+  }
+
+  .source-link {
+    overflow-wrap: anywhere;
+  }
+
+  .source-invalid {
+    color: var(--muted);
+    font-size: 0.78rem;
+  }
+
+  .contact-row {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    padding: 0.7rem 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .contact-row:last-child {
+    padding-bottom: 0;
+    border-bottom: 0;
+  }
+
+  .contact-company {
+    margin: 0;
+    font-weight: 650;
+    overflow-wrap: anywhere;
+  }
+
+  .contact-totals {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+    margin: 0.85rem 0 0;
+  }
+
+  .contact-values {
+    gap: 0.35rem;
+  }
+
+  .contact-totals > div {
+    padding: 0.55rem 0.7rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--subtle);
+  }
+
+  .contact-totals dt {
+    color: var(--muted);
+    font-size: 0.72rem;
+    font-weight: 600;
+  }
+
+  .contact-totals dd {
+    margin: 0.1rem 0 0;
+    font-size: 1.05rem;
+    font-weight: 650;
+  }
+
+  .offer-evidence {
+    margin-top: 0.65rem;
+  }
+
+  .offer-evidence > summary,
+  .company-technical > summary {
+    color: var(--muted);
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .offer-evidence-body,
+  .company-technical-body {
+    margin-top: 0.5rem;
+  }
+
+  .company-technical {
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border);
+  }
+
+  .offer-meta {
+    margin: 0.45rem 0 0;
+  }
+
+  .metric-grid.market-metric-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .market-empty {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.6rem;
+    margin-top: 1rem;
+  }
+
+  .market-table-wrap {
+    margin-top: 1rem;
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+  }
+
+  .market-table {
+    width: 100%;
+    min-width: 52rem;
+    border-collapse: collapse;
+    font-size: 0.84rem;
+  }
+
+  .market-table th,
+  .market-table td {
+    padding: 0.55rem 0.6rem;
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+    vertical-align: top;
+  }
+
+  .market-table th {
+    color: var(--muted);
+    background: var(--subtle);
+    font-size: 0.7rem;
+    font-weight: 650;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .market-table tbody tr:last-child td {
+    border-bottom: 0;
+  }
+
+  .market-company-name {
+    display: block;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+  }
+
+  .market-price {
+    font-weight: 650;
+    white-space: nowrap;
+  }
+
+  .market-unavailable {
+    color: var(--muted);
+    font-style: italic;
+  }
+
+  .market-source {
+    min-width: 9rem;
+  }
+
+  .market-evidence {
+    margin-top: 0.3rem;
+  }
+
+  .market-evidence > summary {
+    color: var(--accent);
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .market-evidence-body {
+    margin-top: 0.4rem;
+  }
+
+  .pagination {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 1rem;
+  }
+
   /* -------------------------------------------------------- notifications */
 
   .toaster {
@@ -975,6 +1493,52 @@
     }
   }
 
+  /* ------------------------------------------------------------- research */
+  /* Responsive research layout: compact on desktop, stacked on small screens. */
+
+  @media (min-width: 640px) {
+    .data-list {
+      grid-template-columns: minmax(8rem, max-content) 1fr;
+    }
+
+    .contact-row {
+      display: grid;
+      grid-template-columns: minmax(12rem, 1fr) 1.2fr 1.2fr;
+      align-items: start;
+    }
+
+    .metric-grid.market-metric-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+
+  @media (min-width: 720px) {
+    .metric-grid {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .contact-totals {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+
+  @media (min-width: 900px) {
+    .company-primary-grid {
+      grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+      gap: 1.5rem;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .filter-row .field {
+      flex-basis: 7.5rem;
+    }
+
+    .filter-row .filter-search {
+      flex-basis: 14rem;
+    }
+  }
+
   /* ----------------------------------------------------------- responsive */
 
   @media (max-width: 1023px) {
@@ -1055,6 +1619,10 @@
 
     .page-header {
       flex-direction: column;
+    }
+
+    .research-header-actions {
+      justify-content: flex-start;
     }
 
     .toaster {

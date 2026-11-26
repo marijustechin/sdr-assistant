@@ -142,7 +142,9 @@ test('renders a failed run with its error and recovery', async ({ page }) => {
   await expect(page.getByText('Research failed.')).toBeVisible({
     timeout: 30_000,
   });
-  await expect(page.getByText('Failed', { exact: true })).toBeVisible();
+  await expect(
+    page.locator('.research-header').getByText('Failed', { exact: true }),
+  ).toBeVisible();
 
   await expect(page.locator('pre.error')).toContainText(
     'Company discovery failed: upstream timeout.',

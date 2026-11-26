@@ -71,6 +71,76 @@ Return one persisted study result through the research API. Preserve all company
 
 Report company profile status separately from offer verdict and market status. This lets the user see both how many sellers the study found and which profiles still need work.
 
+## Autonomous product direction
+
+The owner has approved an autonomous SDR Assistant product model. This section records the
+product direction; Stage 05 and the communication stages are planned, not implemented.
+
+### Autonomous workflow
+
+The human supplies only:
+
+- product name;
+- product description;
+- target country.
+
+The assistant then runs, without per-company human intervention:
+
+1. 01 — Product Identification.
+2. 02 — Page Collection.
+3. 03 — Page Assessment.
+4. 04 — Company Profiling.
+5. 05 — Lead Qualification and Contact Discovery. **Planned, not implemented.**
+
+After the research is complete, the human configures the email account, the initial email subject
+and message, and the communication schedule. The assistant then builds the eligible recipient
+queue, sends individual messages according to the configured schedule, persists outgoing
+communication outcomes, synchronizes the mailbox once or twice per day, associates incoming
+replies with the relevant communication records, and updates communication history and
+statistics.
+
+### No mandatory manual review
+
+The product must scale to thousands of discovered companies without a manual per-company review
+step. Stage 05 must not produce a terminal `NEEDS_REVIEW` queue that requires human action.
+Uncertain cases must be resolved automatically through bounded additional discovery, or excluded
+from the current communication queue. Conceptual terminal outcomes are:
+
+- `qualified`;
+- `no_contact`;
+- `insufficient_evidence`;
+- `rejected`;
+- `duplicate`;
+- `processing_failed`.
+
+These are product states; the exact implementation contract belongs to SDR-007A.
+
+Historical Stage 04 company profile statuses remain unchanged. Stage 05 results and decisions must
+be stored separately from the original Stage 01–04 research results. Rejected companies remain
+available for historical inspection and market intelligence.
+
+### Initial message and recipient eligibility
+
+The initial email is authored by the owner and shared by all eligible recipients. AI
+personalization is deferred. Recipient eligibility must account for applicable outreach
+restrictions, suppression lists, opt-outs, invalid addresses and duplicate prevention. A publicly
+discovered email address is not, by itself, permission to send marketing messages.
+
+### Core product principle
+
+**“Human configuration, machine execution.”** The human manages the process and observes its
+outcomes rather than performing the assistant's work.
+
+### Planned sequence
+
+- SDR-007 — Research Results Presentation and Market.
+- SDR-007A — Automatic Lead Qualification and Contact Discovery.
+- SDR-008 — Email Account Assignment.
+- SDR-009 — Initial Email and Automatic Recipient Queue.
+- SDR-010 — Scheduled Email Sending and Communication History.
+- SDR-011 — Automatic Mailbox Synchronization.
+- SDR-012 — AI-Assisted Reply Management, deferred.
+
 ## Acceptance criteria
 
 The following cases must hold for a previously unseen product and country without adding a category map, a hardcoded trait or a seller-specific exception.

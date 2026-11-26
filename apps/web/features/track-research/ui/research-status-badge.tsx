@@ -1,6 +1,6 @@
 import type { ResearchStatus } from '@/entities/research';
 
-const LABELS: Record<ResearchStatus, string> = {
+export const RESEARCH_STATUS_LABELS: Record<ResearchStatus, string> = {
   QUEUED: 'Queued',
   RUNNING: 'Running',
   COMPLETED: 'Completed',
@@ -20,7 +20,7 @@ export function ResearchStatusBadge({ status }: { status: ResearchStatus }) {
   return (
     <span className={`status ${TONES[status]}`}>
       <span className="dot" aria-hidden="true" />
-      {LABELS[status]}
+      {RESEARCH_STATUS_LABELS[status]}
     </span>
   );
 }

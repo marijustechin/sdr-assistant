@@ -40,6 +40,7 @@ Rules:
 | ENV-003 | Restrict local SDR Assistant service exposure | DONE | [ENV-003-local-service-isolation.md](ENV-003-local-service-isolation.md) |
 | SDR-006 | Research Data Reconciliation | DONE | [SDR-006-research-data-reconciliation.md](SDR-006-research-data-reconciliation.md) |
 | SDR-006A | Final Research Result Persistence and Recovery | DONE | [SDR-006A-final-research-result-persistence.md](SDR-006A-final-research-result-persistence.md) |
+| SDR-007 | Research Results Presentation | DONE | [SDR-007-research-results-presentation.md](SDR-007-research-results-presentation.md) |
 
 SDR-001, SDR-002 and SDR-003 are `DONE`. SDR-004 is registered; its implementation and all
 mandatory proof gates are complete, the read-only preflight and authorized database
@@ -338,5 +339,51 @@ and is `DONE` (the narrow exception is complete; the freeze remains active).
   communication data will not be embedded in research result JSON. The temporary recovery tool was
   removed; its mutation path remains documented in
   [SDR-006A Appendix D](SDR-006A-final-research-result-persistence.md#appendix-d--temporary-recovery-tool-sanitized-source).
+- SDR-007 was registered on 2026-11-26. It replaces the raw research-result presentation with a
+  typed research workspace (list search/filter/sort, detail Overview/Companies/Contacts, company
+  offers/prices/evidence/contacts) using only the existing PostgreSQL-backed research API. The
+  original approved compound proof passed `verify:web` (typecheck, lint, 138/138 unit tests,
+  format check) and then hit the documented sandbox `Error: spawn EPERM` before any E2E test. The
+  owner then authorized **one** Full Access `npm.cmd run e2e:web`: all 35 scenarios executed,
+  **34 passed, 1 failed, 0 skipped, 1.4m, exit code 1**. The single failure was the preserved
+  `app.spec.ts:135` scenario, whose global exact-text locator collided with the new Overview
+  "Execution status" value. The architect accepted that diagnosis; the owner authorized correcting
+  only that assertion to a deterministic locator scoped to `.research-header`, plus one more Full
+  Access run. Final result: **35 passed, 0 failed, 0 skipped, 1.3m, exit code 0**. No production
+  UI changed; only `apps/web/e2e/app.spec.ts` and these records changed. The earlier 138/138 unit
+  evidence remains valid (`verify:web` was not rerun). SDR-007 is **READY_FOR_HUMAN_REVIEW**, not
+  `DONE`. All 18 excluded artifacts remain byte-identical; no research backend, database, prompt,
+  provider, dependency or `.env` change was made; the Research Implementation Freeze remains fully
+  active. Evidence: [SDR-007 §11.2 and §14.4](SDR-007-research-results-presentation.md#112-owner-authorized-locator-correction-and-final-playwright-proof-2026-11-26).
+  SDR-008 was not started.
+- On 2026-11-26 the owner accepted the SDR-007 architecture and authorized the final Market tab,
+  UX refinements, a narrow PRODUCT.md autonomous-product direction update and the agreed roadmap.
+  Implemented: a read-only Market view over the existing typed result (offer/price summary metrics,
+  one row per structured price, product match, currency/unit/VAT columns, comparable-only price
+  sorting, textual evidence disclosure, default priced view and all-offers fallback, pagination);
+  compact list/company/contact filters; a state-reflecting company chevron; identity/contacts
+  primary company layout with secondary technical/evidence disclosures; compact contacts and
+  source links. PRODUCT.md records the autonomous workflow, Stage 05 as planned only, no mandatory
+  manual review, separate Stage 05 storage, owner-authored email, eligibility restrictions and the
+  SDR-007→SDR-012 sequence; no future task was registered. The single approved compound proof
+  passed: `verify:web` **153/153** unit tests (19 files), typecheck, lint and format; `e2e:web`
+  **38/38** scenarios (28 preserved + 10 new), 0 failed, 0 skipped, 1.5m, exit code 0, ending
+  `PASS: SDR-007 Market and final UX refinements`. No backend, database, prompt, provider,
+  dependency, `.env` or communication change was made; all 18 excluded artifacts remain
+  byte-identical. SDR-007 is **READY_FOR_HUMAN_REVIEW**, not `DONE`; SDR-007A and SDR-008 were not
+  started. Evidence: [SDR-007 §15](SDR-007-research-results-presentation.md#15-market-view-final-ux-refinements-and-autonomous-product-direction-2026-11-26).
+- On 2026-11-26 the human owner accepted SDR-007 and it is `DONE`. The accepted manifest is the
+  exact 41 paths recorded in
+  [SDR-007 §16.2](SDR-007-research-results-presentation.md#162-authorized-committed-manifest)
+  (12 modified, 2 deleted, 27 added), including the approved PRODUCT.md autonomous direction. The
+  owner accepted the minor Market filter-label clipping as non-blocking. Stage 05 qualification
+  principles are recorded in
+  [SDR-007 §16.3](SDR-007-research-results-presentation.md#163-input-for-sdr-007a--stage-05-qualification-principles)
+  as input for SDR-007A; **SDR-007A was not registered or implemented**. Sensitivity review found
+  no credentials, private research payloads or non-`.test` contact fixtures; the 18 excluded
+  artifacts remained byte-identical. The manifest was committed as
+  `feat: present research results and market intelligence` and `main` was pushed to `origin`
+  without force; the exact commit hash and `git ls-remote --exit-code origin refs/heads/main`
+  proof are in the completion report. SDR-008 was not started.
 - Historical records in `ops/current.md`, `ops/backlog.md`, `TODO.md` and `HANDOVER.md` are
   not task authorization or authoritative status.

@@ -13,10 +13,10 @@ export type ResearchStatus = z.infer<typeof researchStatusSchema>;
 /**
  * Wire shape of `GET /research/:jobId`.
  *
- * `result` stays `unknown` on purpose: stage 02 is still in development and
- * currently returns the literal string `"completed"`. Do not narrow it until
- * the API publishes a stable schema — see
- * docs/decisions/ADR-001-research-pipeline.md.
+ * `result` stays `unknown` on purpose: the API returns historical envelopes
+ * verbatim (seven unversioned shapes plus the versioned `schemaVersion: 1`
+ * final result). The typed presentation model lives in `model/result.ts` and is
+ * the only consumer that narrows this field — see docs/system/research.md §7.
  */
 export const researchResponseSchema = z.object({
   id: z.string(),

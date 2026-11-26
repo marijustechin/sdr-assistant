@@ -58,6 +58,550 @@ function job(overrides) {
   };
 }
 
+/**
+ * Synthetic research results for the SDR-007 rendered scenarios.
+ *
+ * Every value below is invented test data. Domains use the reserved `.test`
+ * suffix and contacts are clearly synthetic. The shapes mirror the persisted
+ * production contract (`schemaVersion: 1`) and the documented historical
+ * variations; no private research file or row is copied.
+ */
+const SYNTHETIC_COMPANIES = [
+  {
+    domain: 'alpha-sauna.test',
+    registrableDomain: 'alpha-sauna.test',
+    status: 'profiled',
+    company: {
+      name: 'Alpha Sauna OÜ',
+      legalName: 'Alpha Sauna OÜ',
+      code: 'EE12345678',
+      vat: 'EE12345678',
+      address: 'Synthetic 1',
+      city: 'Tallinn',
+      country: 'Estonia',
+      emails: [
+        {
+          value: 'sales@alpha-sauna.test',
+          label: 'sales',
+          sourceUrl: 'https://alpha-sauna.test/contact',
+        },
+        {
+          value: 'info@alpha-sauna.test',
+          label: 'general',
+          sourceUrl: 'https://alpha-sauna.test/contact',
+        },
+      ],
+      phones: [
+        {
+          value: '+372 6000 0001',
+          normalised: '+37260000001',
+          label: 'sales',
+          sourceUrl: 'https://alpha-sauna.test/contact',
+        },
+      ],
+      contactFormUrl: 'https://alpha-sauna.test/contact',
+      sources: ['https://alpha-sauna.test', 'https://alpha-sauna.test/about'],
+    },
+    offers: [
+      {
+        id: '03-0001',
+        item: 'Synthetic sauna bench',
+        verdict: 'a',
+        traits: {
+          medienos_rusis: 'confirmed',
+          apdorojimas: 'differs',
+        },
+        pageIds: ['03-0001'],
+        sourceUrl: 'https://alpha-sauna.test/bench',
+        marketFrom03: {
+          status: 'target',
+          note: 'Synthetic stage-03 note.',
+          sourceUrl: 'https://alpha-sauna.test/bench',
+          quote: 'We deliver this bench across Germany.',
+        },
+        market: {
+          status: 'target',
+          resolvedBy: 'evidence',
+          basis: '03',
+          evidence: [
+            {
+              channel: 'delivery',
+              direction: 'allows',
+              scope: 'domain',
+              appliesTo: ['03-0001'],
+              quote: 'Delivery to Germany is available.',
+              sourceUrl: 'https://alpha-sauna.test/delivery',
+            },
+          ],
+          channels: {
+            delivery: 'open',
+            pickup: 'unknown',
+            purchase: 'unknown',
+          },
+          conflict: false,
+        },
+        prices: [
+          {
+            amount: 1250,
+            currency: 'EUR',
+            unit: 'm2',
+            vatIncluded: true,
+            priceType: 'from',
+            variant: 'Bench A',
+            quote: 'From 1,250 EUR per m².',
+            sourceUrl: 'https://alpha-sauna.test/bench',
+          },
+          {
+            amount: 1490,
+            currency: 'EUR',
+            unit: 'pc',
+            vatIncluded: true,
+            priceType: 'exact',
+            variant: 'Bench B',
+            quote: 'Synthetic per-piece price.',
+            sourceUrl: 'https://alpha-sauna.test/bench-piece',
+          },
+        ],
+      },
+      {
+        id: '03-0002',
+        item: 'Synthetic bench cushion',
+        verdict: 'b',
+        traits: {},
+        pageIds: [],
+        sourceUrl: 'https://alpha-sauna.test/cushion',
+        marketFrom03: 'Legacy-style market note for this offer.',
+        market: {
+          status: 'unclear',
+          resolvedBy: 'none',
+          evidence: [],
+          channels: {},
+          conflict: false,
+        },
+        prices: [],
+      },
+    ],
+  },
+  {
+    domain: 'beta-wood.test',
+    registrableDomain: 'beta-wood.test',
+    status: 'needs_review',
+    company: {
+      name: null,
+      legalName: null,
+      code: null,
+      vat: null,
+      address: null,
+      city: null,
+      country: null,
+      emails: [
+        {
+          value: 'INFO@alpha-sauna.test',
+          label: null,
+          sourceUrl: 'https://beta-wood.test/contact',
+        },
+      ],
+      phones: [],
+      contactFormUrl: null,
+      sources: ['https://beta-wood.test'],
+    },
+    offers: [
+      {
+        id: '03-0003',
+        item: 'Synthetic cedar panel',
+        verdict: 'b',
+        traits: {},
+        pageIds: ['03-0003'],
+        marketFrom03: 'Synthetic historical market note.',
+        market: {
+          status: 'unclear',
+          resolvedBy: 'none',
+          evidence: [],
+          channels: {},
+          conflict: false,
+        },
+        prices: [],
+      },
+    ],
+  },
+  {
+    domain: 'gamma-heat.test',
+    registrableDomain: 'gamma-heat.test',
+    status: 'profiled',
+    company: {
+      name: 'Gamma Heat GmbH',
+      legalName: 'Gamma Heat GmbH',
+      code: 'DE12345678',
+      vat: 'DE123456789',
+      address: 'Synthetic 2',
+      city: 'Berlin',
+      country: 'Germany',
+      emails: [],
+      phones: [
+        {
+          value: '+49 30 0000002',
+          normalised: '+49300000002',
+          label: 'general',
+          sourceUrl: 'https://gamma-heat.test/contact',
+        },
+      ],
+      contactFormUrl: 'data:text/html,<script>alert(1)</script>',
+      sources: ['https://gamma-heat.test'],
+    },
+    offers: [
+      {
+        id: '03-0004',
+        item: 'Synthetic heater',
+        verdict: 'b',
+        traits: { leistung: 'unknown' },
+        pageIds: ['03-0004'],
+        sourceUrl: 'javascript:alert(1)',
+        marketFrom03: {
+          status: 'unclear',
+          note: 'Synthetic note',
+          sourceUrl: 'https://gamma-heat.test/note',
+          quote: null,
+        },
+        market: {
+          status: 'unclear',
+          resolvedBy: 'evidence',
+          evidence: [
+            {
+              channel: 'purchase',
+              direction: 'restricts',
+              scope: 'offer',
+              appliesTo: ['03-0004'],
+              quote: 'Synthetic restriction quote',
+              sourceUrl: 'https://gamma-heat.test/restriction',
+            },
+          ],
+          channels: {
+            delivery: 'open',
+            pickup: 'closed',
+            purchase: 'closed',
+          },
+          conflict: true,
+        },
+        prices: [
+          {
+            amount: 0,
+            currency: 'EUR',
+            unit: 'pc',
+            vatIncluded: false,
+            priceType: 'exact',
+            variant: null,
+            quote: 'Synthetic zero price.',
+            sourceUrl: 'https://gamma-heat.test/price',
+          },
+        ],
+      },
+    ],
+  },
+  {
+    domain: 'delta-klamp.test',
+    registrableDomain: 'delta-klamp.test',
+    status: 'needs_review',
+    company: {
+      name: 'Delta Klamp',
+      legalName: null,
+      code: null,
+      vat: null,
+      address: null,
+      city: null,
+      country: null,
+      emails: [],
+      phones: [],
+      contactFormUrl: null,
+      sources: [],
+    },
+    offers: [
+      {
+        id: '03-0005',
+        item: 'Synthetic clamp',
+        verdict: 'b',
+        traits: {},
+        pageIds: [],
+        sourceUrl: 'https://delta-klamp.test/clamp',
+        marketFrom03: {
+          status: 'target',
+          note: null,
+          sourceUrl: 'https://delta-klamp.test/clamp',
+          quote: 'Synthetic quote',
+        },
+        market: {
+          status: 'target',
+          resolvedBy: 'evidence',
+          evidence: [],
+          channels: {},
+          conflict: false,
+        },
+        prices: [
+          {
+            amount: 89,
+            currency: 'USD',
+            unit: 'm',
+            vatIncluded: null,
+            priceType: 'exact',
+            variant: 'Clamp set',
+            quote: 'Synthetic USD price.',
+            sourceUrl: 'https://delta-klamp.test/price',
+          },
+        ],
+      },
+    ],
+  },
+  {
+    domain: 'epsilon-puu.test',
+    registrableDomain: 'epsilon-puu.test',
+    status: 'rejected',
+    company: {
+      name: null,
+      legalName: null,
+      code: null,
+      vat: null,
+      address: null,
+      city: null,
+      country: null,
+      emails: [],
+      phones: [],
+      contactFormUrl: null,
+      sources: ['https://epsilon-puu.test'],
+    },
+    offers: [],
+  },
+  {
+    domain: 'zeta-profile.test',
+    registrableDomain: 'zeta-profile.test',
+    status: 'error',
+    error: {
+      code: 'fetch_failed',
+      message: 'Synthetic fetch failure.',
+    },
+    company: {
+      name: 'Zeta Profile',
+      legalName: null,
+      code: null,
+      vat: null,
+      address: null,
+      city: null,
+      country: null,
+      emails: [],
+      phones: [],
+      contactFormUrl: null,
+      sources: [],
+    },
+    offers: [],
+  },
+];
+
+const SYNTHETIC_SUMMARY = {
+  domains: 6,
+  reused: 0,
+  firstCallOnly: 4,
+  secondCall: 1,
+  secondCallFailed: 0,
+  errors: 1,
+  newFetches: 5,
+  newLlmCalls: 6,
+  newPromptTokens: 1200,
+  newCompletionTokens: 300,
+};
+
+const LONG_SYNTHETIC_QUOTE = 'Synthetic long evidence text. '.repeat(800);
+
+function syntheticManyCompanies() {
+  return Array.from({ length: 60 }, (value, index) => {
+    const number = index + 1;
+
+    return {
+      domain: `company-${number}.test`,
+      registrableDomain: `company-${number}.test`,
+      status: 'profiled',
+      company: {
+        name: `Synthetic Company ${number}`,
+        legalName: null,
+        code: null,
+        vat: null,
+        address: null,
+        city: null,
+        country: null,
+        emails:
+          index % 2 === 0
+            ? [
+                {
+                  value: `sales@company-${number}.test`,
+                  label: 'sales',
+                  sourceUrl: `https://company-${number}.test/contact`,
+                },
+              ]
+            : [],
+        phones: [],
+        contactFormUrl: null,
+        sources: [`https://company-${number}.test`],
+      },
+      offers: [
+        {
+          id: `03-${String(number).padStart(4, '0')}`,
+          item: `Synthetic offer ${number}`,
+          verdict: 'b',
+          traits: {
+            trait_family: index % 2 === 0 ? 'confirmed' : 'unknown',
+          },
+          pageIds: [],
+          sourceUrl: `https://company-${number}.test/offer`,
+          marketFrom03: {
+            status: 'unclear',
+            note: null,
+            sourceUrl: `https://company-${number}.test/offer`,
+            quote: index === 59 ? LONG_SYNTHETIC_QUOTE : 'Synthetic quote',
+          },
+          market: {
+            status: 'unclear',
+            resolvedBy: 'none',
+            evidence: [],
+            channels: {},
+            conflict: false,
+          },
+          prices: [],
+        },
+      ],
+    };
+  });
+}
+
+const READABLE_MALFORMED_RESULT = {
+  domain: 'malformed-ok.test',
+  registrableDomain: 'malformed-ok.test',
+  status: 'profiled',
+  company: {
+    name: 'Readable Company',
+    legalName: null,
+    code: null,
+    vat: null,
+    address: null,
+    city: null,
+    country: null,
+    emails: [],
+    phones: [],
+    contactFormUrl: null,
+    sources: [],
+  },
+  offers: [
+    {
+      id: '03-0090',
+      item: 'Readable offer',
+      verdict: 'b',
+      traits: {},
+      pageIds: [],
+      sourceUrl: 'https://malformed-ok.test/offer',
+      marketFrom03: null,
+      market: {
+        status: 'unclear',
+        resolvedBy: 'none',
+        evidence: [],
+        channels: {},
+        conflict: false,
+      },
+      prices: [],
+    },
+  ],
+};
+
+const RESULT_JOBS = {
+  'job-many': job({
+    id: 'job-many',
+    productId: 'p-long',
+    country: 'Netherlands',
+    status: 'COMPLETED',
+    createdAt: '2026-11-22T09:00:00.000Z',
+    updatedAt: '2026-11-22T09:40:00.000Z',
+    result: {
+      schemaVersion: 1,
+      completedThrough: '04-company-profiling',
+      resultsPerQuery: 25,
+      summary: { domains: 60, errors: 0 },
+      companies: syntheticManyCompanies(),
+    },
+  }),
+  'job-profiles': job({
+    id: 'job-profiles',
+    productId: 'p-long',
+    country: 'Germany',
+    status: 'COMPLETED',
+    createdAt: '2026-11-21T09:00:00.000Z',
+    updatedAt: '2026-11-21T09:30:00.000Z',
+    result: {
+      schemaVersion: 1,
+      completedThrough: '04-company-profiling',
+      resultsPerQuery: 25,
+      summary: SYNTHETIC_SUMMARY,
+      companies: SYNTHETIC_COMPANIES,
+    },
+  }),
+  'job-malformed': job({
+    id: 'job-malformed',
+    productId: 'p-long',
+    country: 'Poland',
+    status: 'COMPLETED',
+    createdAt: '2026-11-19T09:00:00.000Z',
+    updatedAt: '2026-11-19T09:10:00.000Z',
+    result: {
+      schemaVersion: 1,
+      completedThrough: '04-company-profiling',
+      companies: [
+        READABLE_MALFORMED_RESULT,
+        { status: 'profiled' },
+        { domain: 'broken.test' },
+      ],
+    },
+  }),
+  'job-empty': job({
+    id: 'job-empty',
+    productId: 'p-long',
+    country: 'Lithuania',
+    status: 'COMPLETED',
+    createdAt: '2026-11-18T09:00:00.000Z',
+    updatedAt: '2026-11-18T09:05:00.000Z',
+    result: {
+      schemaVersion: 1,
+      completedThrough: '04-company-profiling',
+      companies: [],
+    },
+  }),
+  'job-history': job({
+    id: 'job-history',
+    productId: 'p-long',
+    country: 'Hungary',
+    status: 'COMPLETED',
+    createdAt: '2026-11-17T09:00:00.000Z',
+    updatedAt: '2026-11-17T09:05:00.000Z',
+    result: {
+      completedThrough: '02-page-collection',
+      identificationPageCount: 12,
+      selectedPageCount: 5,
+      resultsPerQuery: 20,
+    },
+  }),
+  'job-unsupported': job({
+    id: 'job-unsupported',
+    productId: 'p-long',
+    country: 'Latvia',
+    status: 'COMPLETED',
+    createdAt: '2026-11-16T09:00:00.000Z',
+    updatedAt: '2026-11-16T09:05:00.000Z',
+    result: { unexpected: 'shape' },
+  }),
+  'job-null-result': job({
+    id: 'job-null-result',
+    productId: 'p-long',
+    country: 'Estonia',
+    status: 'COMPLETED',
+    createdAt: '2026-11-15T09:00:00.000Z',
+    updatedAt: '2026-11-15T09:05:00.000Z',
+    result: null,
+  }),
+};
+
 const STATIC_JOBS = {
   'job-done': job({
     status: 'COMPLETED',
@@ -69,6 +613,7 @@ const STATIC_JOBS = {
     status: 'FAILED',
     error: 'Company discovery failed: upstream timeout.',
   }),
+  ...RESULT_JOBS,
 };
 
 /** Jobs that advance on every read. */
@@ -615,6 +1160,25 @@ const server = createServer(async (request, response) => {
     dynamicJobs[id].calls = 0;
 
     return send(response, 202, { jobId: id, status: 'QUEUED' });
+  }
+
+  const resumeMatch = /^\/research\/([^/]+)\/resume$/.exec(path);
+
+  if (resumeMatch !== null && method === 'POST') {
+    const id = decodeURIComponent(resumeMatch[1]);
+    const state = dynamicJobs[id];
+
+    if (state === undefined) {
+      return send(response, 409, {
+        statusCode: 409,
+        message: 'Research is already completed.',
+        error: 'Conflict',
+      });
+    }
+
+    state.calls = 0;
+
+    return send(response, 202, { jobId: id, status: 'RUNNING' });
   }
 
   const researchMatch = /^\/research\/([^/]+)$/.exec(path);

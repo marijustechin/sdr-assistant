@@ -1,3 +1,5 @@
-export { ResearchDetails } from './ui/research-details';
-export { ResearchResultView } from './ui/research-result-view';
-export { ResearchStatusBadge } from './ui/research-status-badge';
+export {
+  RESEARCH_STATUS_LABELS,
+  ResearchStatusBadge,
+} from './ui/research-status-badge';
+export { ResearchWorkspace } from './ui/research-workspace';

@@ -1,9 +1,9 @@
 import Link from 'next/link';
 
-import { fetchResearches } from '@/entities/research';
-import { ResearchStatusBadge } from '@/features/track-research';
+import { fetchResearches, toResearchListItem } from '@/entities/research';
 import { fetchProducts } from '@/lib/products';
-import { formatDateTime, shortenId } from '@/shared/lib/format';
+
+import { ResearchesExplorer } from './researches-explorer';
 
 export async function ResearchesPage() {
   const [researchesResult, productsResult] = await Promise.all([
@@ -19,19 +19,17 @@ export async function ResearchesPage() {
     }
   }
 
-  const researches = researchesResult.ok
-    ? [...researchesResult.data].sort(
-        (left, right) =>
-          Date.parse(right.createdAt) - Date.parse(left.createdAt),
-      )
-    : [];
+  const researches = researchesResult.ok ? researchesResult.data : [];
 
   return (
     <main>
       <div className="page-header">
         <div>
           <h1>Researches</h1>
-          <p className="muted">One run per product and market.</p>
+          <p className="muted">
+            All research runs across products and markets. A product and market
+            may have several historical runs.
+          </p>
         </div>
         <Link href="/products" className="button secondary">
           Products
@@ -53,24 +51,14 @@ export async function ResearchesPage() {
             <Link href="/products">Products →</Link>
           </p>
         ) : (
-          <ul className="product-list">
-            {researches.map((research) => (
-              <li key={research.id} className="product-item">
-                <div>
-                  <h2>
-                    <Link href={`/researches/${research.id}`}>
-                      {productNames.get(research.productId) ??
-                        shortenId(research.productId)}
-                    </Link>
-                  </h2>
-                  <p className="muted">
-                    {research.country} · {formatDateTime(research.createdAt)}
-                  </p>
-                </div>
-                <ResearchStatusBadge status={research.status} />
-              </li>
-            ))}
-          </ul>
+          <ResearchesExplorer
+            items={researches.map((research) =>
+              toResearchListItem(
+                research,
+                productNames.get(research.productId) ?? null,
+              ),
+            )}
+          />
         )}
       </section>
 
