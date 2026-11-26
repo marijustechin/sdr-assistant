@@ -156,10 +156,13 @@ configured account, so connection verification no longer depends on the mock API
 4. **04 company profiling** — profile each selected domain with Firecrawl homepage/contact
    pages and DeepSeek calls; build company, offer, market, price and contact records.
 
-All four stages are connected in the current service. The normal completion path currently
-stores a result without the company profiles, while the resume path stores `companies`;
-see [research.md](docs/system/research.md) for the exact status and API implications. Do
-not treat old fixture/replay or 02-company-discovery descriptions as current.
+All four stages are connected in the current service. Both the normal and the resumed completion
+path persist the complete stage-04 company profiles under one versioned final-result contract
+(`schemaVersion: 1`, `completedThrough`, `companies`, optional `summary` and `resultsPerQuery`);
+older rows keep their historical envelopes. See
+[SDR-006A](docs/tasks/SDR-006A-final-research-result-persistence.md) for the contract and
+[research.md](docs/system/research.md) for the rest of the pipeline. Do not treat old
+fixture/replay or 02-company-discovery descriptions as current.
 
 ## Verification
 

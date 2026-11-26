@@ -330,38 +330,64 @@ The frontend polls through the same-origin
 `result` as `unknown`
 ([schema.ts](../../apps/web/entities/research/model/schema.ts)).
 
-### Normal-path result discrepancy
+### Final-result persistence
 
-The normal `runResearch()` completion writes only:
+Both completion paths — normal (`runResearch`) and resumed (`runResume`) — build the
+persisted result with one shared constructor and write it together with the COMPLETED state
+in a single token-guarded statement
+([final-result.ts](../../apps/api/src/modules/research/final-result.ts),
+[research.service.ts](../../apps/api/src/modules/research/research.service.ts)).
+
+The versioned contract for newly completed rows is:
 
 ```json
-{ "completedThrough": "04-company-profiling", "resultsPerQuery": <number> }
+{
+  "schemaVersion": 1,
+  "completedThrough": "04-company-profiling",
+  "companies": [ "<the complete stage-04 CompanyProfile[]> " ],
+  "summary": { "<stage-04 batch counts, when available>": 0 },
+  "resultsPerQuery": 40
+}
 ```
 
-It does not include the `profiledCompanies` value even though stage 04 produced it
-([research.service.ts](../../apps/api/src/modules/research/research.service.ts#L272-L289)).
-The resume path writes `companies: profiledCompanies.domains`
-([research.service.ts](../../apps/api/src/modules/research/research.service.ts#L464-L479)).
-Therefore a normal `COMPLETED` run can report success while its API `result` lacks the
-company profiles that `PRODUCT.md` requires to be persisted. This is an implementation
-defect, not a documentation choice; SDR-002 records it and does not fix it.
+- `companies` is always present and is the stage-04 profile array unchanged: identity,
+  legal data, contacts, offers, prices, market evidence, source URLs and the study's own
+  trait keys. An intentionally empty result persists `companies: []` and still completes;
+  a missing or non-array stage-04 result fails the run instead of reporting completion.
+- `summary` is the stage-04 batch counts object. Stage-04 `diagnostics` is **not** persisted:
+  it carries raw second-call model output and per-page text, grows with the run and
+  duplicates the stage-04 temp dump.
+- `resultsPerQuery` is written only by the normal path, the only one that reads the setting.
+- Historical rows keep their own envelopes (seven shapes were in the database at the
+  SDR-006 inventory); readers must discriminate by key presence and must not require
+  `schemaVersion`.
+- Result and COMPLETED state are one write filtered by the execution token, so a stale
+  executor cannot overwrite another run and a failed write leaves the run FAILED rather
+  than falsely completed.
+
+Earlier revisions of this document described the pre-SDR-006A defect, where the normal path
+stored `{ completedThrough, resultsPerQuery }` without `companies` while the resume path
+stored only `{ completedThrough, companies }`. That description is historical: SDR-006A
+corrected both paths. SDR-006A also prepared, but did not execute, a guarded one-row recovery
+for the single historical row whose profiles exist only in a temp artifact.
 
 ## 8. API exposure and status/result mismatch
 
-- `COMPLETED` means the four stages returned; it does not guarantee that `result.companies`
-  is present on the normal path.
+- `COMPLETED` from SDR-006A onward means the four stages returned **and** the final result was
+  persisted. Historical `COMPLETED` rows may still lack `companies` (34 of 37 at the SDR-006
+  inventory).
 - `INTERRUPTED` is written only by the stale-run sweep, not by a stage handler.
 - `stage` is a progress label; it is cleared on terminal success/failure.
 - `result` is open JSON; the frontend intentionally does not type it and renders the raw
   value rather than a typed company-profile view.
-- Neither result shape includes stage-04 `diagnostics`/`summary`, the stage-04 prompt
-  version, stage-03 criteria/decisions or a stable schema version.
+- The current result includes the stage-04 `summary` and a `schemaVersion`, but not stage-04
+  `diagnostics`, the stage-04 prompt version, or stage-03 criteria/decisions.
 - The frontend schema comment says stage 02 returns the literal string `"completed"`;
-  that comment is stale against the current service, which writes an object (or an object
-  with `companies` on resume). Do not rely on the comment as current behavior.
-- `apps/api/test/research.result.test.ts` expects a combined result with
-  `completedThrough`, `resultsPerQuery` and `companies`; no current code path writes that
-  combination. It also reads a temp file that is not present in the current tree.
+  that comment is stale against the current service, which writes a versioned object. Do not
+  rely on the comment as current behavior.
+- `apps/api/test/research.result.test.ts` was aligned by SDR-006A: it now drives the
+  production completion path with a controlled synthetic stage-04 result and asserts the
+  versioned contract. It no longer reads a temp file.
 
 ## 9. Fixtures, replay and artifacts
 
@@ -404,8 +430,8 @@ These are observations from reading tests; SDR-002 did not run them.
 code does not satisfy all of it; these are observations, not authorized fixes.
 
 - **Persisted study result.** PRODUCT.md requires one persisted study result with all
-  profiles and offers. The normal completion path stores no companies (see §7). The resume
-  path does.
+  profiles and offers. The normal completion path stored no companies until SDR-006A; both
+  completion paths now persist the versioned result (§7). Historical rows are unchanged.
 - **Company profile status.** PRODUCT.md defines `profiled` as a named company with at
   least one confirmed target-market offer. `deriveCompanyProfileStatus()` returns
   `profiled` for a name plus any `a`/`b` offer, without requiring `market.status ===

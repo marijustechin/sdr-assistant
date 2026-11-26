@@ -21,6 +21,10 @@ import { PageAssessmentService } from './stages/03-page-assessment/page-assessme
 import { PAGE_ASSESSMENT_PROMPT_VERSION } from './stages/03-page-assessment/page-assessment.prompt.js';
 import { languageByCountry } from './lib/utils.js';
 import { CompanyProfilingService } from './stages/04-company-profiling/company-profiling.service.js';
+import {
+  buildFinalResearchResult,
+  type FinalResearchResult,
+} from './final-result.js';
 import { PageForAssessment } from './types.js';
 import { IdentifiedProduct } from './stages/01-product-identification/product-identification.schema.js';
 
@@ -275,25 +279,11 @@ export class ResearchService implements OnModuleInit {
         updateStage,
       );
 
-      const completed = await this.prismaService.research.updateMany({
-        where: { id: jobId, executionToken },
-        data: {
-          status: 'COMPLETED',
-          stage: null,
-          executionToken: null,
-          executionLeaseUntil: null,
-          result: asJson({
-            completedThrough: '04-company-profiling',
-            resultsPerQuery,
-          }),
-        },
-      });
-
-      if (completed.count !== 1) {
-        throw new Error(
-          `Execution lease lost for job ${jobId}; this process must stop.`,
-        );
-      }
+      await this.completeResearch(
+        jobId,
+        executionToken,
+        buildFinalResearchResult({ profiling: profiledCompanies, resultsPerQuery }),
+      );
     } catch (error) {
       await this.prismaService.research.updateMany({
         where: { id: jobId, executionToken },
@@ -305,6 +295,38 @@ export class ResearchService implements OnModuleInit {
           error: error instanceof Error ? error.message : String(error),
         },
       });
+    }
+  }
+
+  /**
+   * Persists the final result and the COMPLETED state in one write.
+   *
+   * The conditional `executionToken` filter is the ownership safeguard: a stale or
+   * superseded executor matches no row, writes nothing and throws, so it can never
+   * overwrite another execution's result. Because the result and the status are set
+   * by the same statement, a failure leaves the row running (and then FAILED from the
+   * caller's catch) rather than falsely completed.
+   */
+  private async completeResearch(
+    jobId: string,
+    executionToken: string,
+    result: FinalResearchResult,
+  ): Promise<void> {
+    const completed = await this.prismaService.research.updateMany({
+      where: { id: jobId, executionToken },
+      data: {
+        status: 'COMPLETED',
+        stage: null,
+        executionToken: null,
+        executionLeaseUntil: null,
+        result: asJson(result),
+      },
+    });
+
+    if (completed.count !== 1) {
+      throw new Error(
+        `Execution lease lost for job ${jobId}; this process must stop.`,
+      );
     }
   }
 
@@ -466,25 +488,11 @@ export class ResearchService implements OnModuleInit {
         updateStage,
       );
 
-      const completed = await this.prismaService.research.updateMany({
-        where: { id: jobId, executionToken },
-        data: {
-          status: 'COMPLETED',
-          stage: null,
-          executionToken: null,
-          executionLeaseUntil: null,
-          result: asJson({
-            completedThrough: '04-company-profiling',
-            companies: profiledCompanies.domains,
-          }),
-        },
-      });
-
-      if (completed.count !== 1) {
-        throw new Error(
-          `Execution lease lost for job ${jobId}; this process must stop.`,
-        );
-      }
+      await this.completeResearch(
+        jobId,
+        executionToken,
+        buildFinalResearchResult({ profiling: profiledCompanies }),
+      );
     } catch (error) {
       await this.prismaService.research.updateMany({
         where: { id: jobId, executionToken },

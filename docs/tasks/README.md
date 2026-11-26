@@ -39,6 +39,7 @@ Rules:
 | SDR-005 | Email Connection Testing and Account Form UX | DONE | [SDR-005-email-connection-testing.md](SDR-005-email-connection-testing.md) |
 | ENV-003 | Restrict local SDR Assistant service exposure | DONE | [ENV-003-local-service-isolation.md](ENV-003-local-service-isolation.md) |
 | SDR-006 | Research Data Reconciliation | DONE | [SDR-006-research-data-reconciliation.md](SDR-006-research-data-reconciliation.md) |
+| SDR-006A | Final Research Result Persistence and Recovery | DONE | [SDR-006A-final-research-result-persistence.md](SDR-006A-final-research-result-persistence.md) |
 
 SDR-001, SDR-002 and SDR-003 are `DONE`. SDR-004 is registered; its implementation and all
 mandatory proof gates are complete, the read-only preflight and authorized database
@@ -57,7 +58,10 @@ ENV-003 is `DONE`: the local frontend, API and PostgreSQL host port were restric
 loopback with all 12 checks passing and all data preserved. SDR-006 was registered on
 2026-11-26, executed as a read-only reconciliation, accepted by the human owner, and its
 follow-up preservation and authorized cleanup were completed on the same day; it is `DONE`.
-SDR-006A is proposed but **not registered and not started**.
+SDR-006A is registered on 2026-11-26 under a narrow Research Implementation Freeze exception
+limited to research result persistence; after one failed proof, an owner-authorized correction and
+guard strengthening, and a verified one-row historical recovery, it was accepted by the architect
+and is `DONE` (the narrow exception is complete; the freeze remains active).
 
 ## Notes
 
@@ -281,5 +285,58 @@ SDR-006A is proposed but **not registered and not started**.
   started. SDR-006 is `DONE`. Evidence:
   [SDR-006 §22–§25](SDR-006-research-data-reconciliation.md#22-historical-research-data-preservation-executed)
   and Appendix C.
+- SDR-006A was registered on 2026-11-26 under a narrow Research Implementation Freeze exception
+  limited to final research-result construction and persistence. Implemented: one versioned
+  final-result contract (`schemaVersion: 1`, `completedThrough`, `companies`, optional `summary`
+  and `resultsPerQuery`) built once and used by both the normal and the resumed completion path,
+  persisted with the COMPLETED state in a single token-guarded write; a missing stage-04 result
+  fails the run instead of producing a false completion; historical envelopes stay readable. Additive
+  only: one new module, two completion call sites replaced, one new test file. No stage, prompt,
+  provider, schema, migration or database record changed. A guarded one-row recovery procedure for
+  the 77-profile file-only result is prepared but **not executed**. **First proof: FAILED** — build
+  passed, then 18 tests with 12 passed and 6 failed, exit code 1, caused by six call sites in the new
+  test file naming `prepareHistoricalRecovery` instead of `prepareHistoricalResultRecovery`. Per the
+  task's §12 that run was not rerun, weakened or substituted; it is preserved in
+  [SDR-006A §17.1](SDR-006A-final-research-result-persistence.md#171-first-approved-proof-original-run-failed-preserved)
+  and Appendix B. The owner then authorized the mechanical correction, a strengthened recovery guard
+  and one new proof that also runs `apps/api/test/research.result.test.ts`. **Newly approved proof:
+  PASS** — build passed, **26/26 tests passed**, exit code 0, ending
+  `PASS: SDR-006A final result persistence and recovery guards`. The guard now refuses any existing
+  `companies` field (including a legitimate `companies: []`), a result that is not the exact
+  approved pre-recovery value, a changed or already recovered row, and an unapproved target
+  fingerprint; the database compare-and-set enforces the original result, and the procedure remains
+  unexecuted. `docs/system/research.md` §7/§8/§11 and `README.md` were reconciled. SDR-006A is
+  `READY_FOR_HUMAN_REVIEW`, not `DONE`; SDR-007 was not started. Evidence:
+  [SDR-006A §17.2](SDR-006A-final-research-result-persistence.md#172-newly-approved-proof-this-follow-up)
+  and Appendix C.
+- On 2026-11-26 the architect accepted the SDR-006A persistence implementation and the owner
+  authorized one controlled historical recovery. Executed for research
+  `cmww8smxb0000z4swhooukamv`: preflight 16/16 PASS with **exact domain-set correlation** (full
+  SHA-256 `7b0a44a3…165c5` on both sides); protected backup
+  `C:\Users\msmig\Projektai\_backupsForProjects\sdr-assistant-db-20261126-141758` (custom dump,
+  3,808,110 bytes, SHA-256 `68a9fdda…5fa71e`, 8 `TABLE DATA` entries, complete read, no restore,
+  restricted ACL); one transaction with a compare-and-set predicate affected **exactly 1 row**.
+  Before → after: researches 42 → 42, completed 37 → 37, records with company profiles 3 → **4**,
+  profiles 146 → **223**, offers 276 → **449**. All 41 non-target research rows, all stage rows,
+  products, settings, email accounts, schema metadata, the ten migrations, both artifacts, the new
+  backup and the 18 excluded artifacts are unchanged; no production code changed and no service was
+  restarted. Final proof 17/17 PASS, exit code 0, ending
+  `PASS: SDR-006A historical research result recovery and preservation verified`; detail-API
+  acceptance 10/10 (77 profiles, 173 offers, `schemaVersion: 1`, no tokens or leases, historical rows
+  still readable). SDR-006A was then accepted by the architect and is `DONE`; the narrow persistence
+  exception is complete, the Research Implementation Freeze remains fully active, and SDR-007 was
+  not started. Final state: 42 researches, 37 completed, 4 with company profiles, 223 profiles,
+  449 offers. Evidence:
+  [SDR-006A §22](SDR-006A-final-research-result-persistence.md#22-controlled-historical-recovery-executed-2026-11-26)
+  and §23.
+- SDR-006A was accepted as `DONE` on 2026-11-26 (see previous note). Accepted decisions recorded in
+  the task record: PostgreSQL is the authoritative persisted result source; new completions use
+  `schemaVersion: 1`; normal and resumed execution share one construction and persistence mechanism;
+  result and COMPLETED state are written atomically; a legitimate empty `companies` array is distinct
+  from a missing `companies` field; historical envelopes remain unchanged except the single
+  authorized recovered row; profiling diagnostics remain outside the final-result contract;
+  communication data will not be embedded in research result JSON. The temporary recovery tool was
+  removed; its mutation path remains documented in
+  [SDR-006A Appendix D](SDR-006A-final-research-result-persistence.md#appendix-d--temporary-recovery-tool-sanitized-source).
 - Historical records in `ops/current.md`, `ops/backlog.md`, `TODO.md` and `HANDOVER.md` are
   not task authorization or authoritative status.
