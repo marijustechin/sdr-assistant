@@ -2,9 +2,14 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
 import { fetchEmailAccounts } from '@/entities/email-account';
-import { fetchResearch, fetchResearchCommunication } from '@/entities/research';
+import {
+  fetchResearch,
+  fetchResearchCommunication,
+  prepareResearchRecipientQueue,
+} from '@/entities/research';
 import {
   ResearchWorkspace,
+  type RecipientQueueData,
   type ResearchCommunicationSettingsData,
 } from '@/features/track-research';
 import { fetchProduct } from '@/lib/products';
@@ -42,12 +47,15 @@ export async function ResearchPage({ jobId }: ResearchPageProps) {
     ? productResult.product.name
     : shortenId(research.productId);
 
-  // Communication settings fail independently: an unavailable assignment or
-  // account list renders inside the Settings tab and leaves the rest intact.
-  const [communicationResult, emailAccountsResult] = await Promise.all([
-    fetchResearchCommunication(research.id),
-    fetchEmailAccounts(),
-  ]);
+  // Communication settings, the account list and the recipient queue fail
+  // independently: an unavailable assignment or queue renders inside its own
+  // tab and leaves the rest of the research intact.
+  const [communicationResult, emailAccountsResult, queueResult] =
+    await Promise.all([
+      fetchResearchCommunication(research.id),
+      fetchEmailAccounts(),
+      prepareResearchRecipientQueue(research.id),
+    ]);
   const communicationError = communicationResult.ok
     ? emailAccountsResult.ok
       ? null
@@ -58,6 +66,7 @@ export async function ResearchPage({ jobId }: ResearchPageProps) {
       ? {
           state: 'ready',
           emailAccountId: communicationResult.data.emailAccountId,
+          initialEmail: communicationResult.data.initialEmail,
           accounts: emailAccountsResult.data,
         }
       : {
@@ -65,6 +74,12 @@ export async function ResearchPage({ jobId }: ResearchPageProps) {
           message:
             communicationError ?? 'The communication settings are unavailable.',
         };
+
+  // The server ensures preparation (idempotent) and returns the first queue
+  // page, so the Communication tab opens with data and never writes on read.
+  const recipientQueue: RecipientQueueData = queueResult.ok
+    ? { state: 'ready', queue: queueResult.data }
+    : { state: 'error', message: queueResult.message };
 
   return (
     <main>
@@ -78,6 +93,7 @@ export async function ResearchPage({ jobId }: ResearchPageProps) {
         initialResearch={research}
         productName={productName}
         communication={communication}
+        recipientQueue={recipientQueue}
       />
     </main>
   );

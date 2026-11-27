@@ -43,6 +43,7 @@ Rules:
 | SDR-007 | Research Results Presentation | DONE | [SDR-007-research-results-presentation.md](SDR-007-research-results-presentation.md) |
 | SDR-007A | Stage 05 Contact Discovery — Revised Scope | DONE / HUMAN_APPROVED | [SDR-007A-lead-qualification-contact-discovery.md](SDR-007A-lead-qualification-contact-discovery.md) |
 | SDR-008 | Research Email Account Assignment | DONE / HUMAN_APPROVED | [SDR-008-research-email-account-assignment.md](SDR-008-research-email-account-assignment.md) |
+| SDR-009 | Initial Email and Automatic Recipient Queue | DONE / HUMAN_APPROVED | [SDR-009-initial-email-and-recipient-queue.md](SDR-009-initial-email-and-recipient-queue.md) |
 
 SDR-001, SDR-002 and SDR-003 are `DONE`. SDR-004 is registered; its implementation and all
 mandatory proof gates are complete, the read-only preflight and authorized database
@@ -552,3 +553,55 @@ and is `DONE` (the narrow exception is complete; the freeze remains active).
   artifacts and the 30 pre-existing untracked artifacts were excluded. The exact commit hash,
   staged-manifest review, remote verification and final working-tree status are recorded in the
   completion report. SDR-009 was not started.
+- SDR-009 was registered on 2026-11-27. It adds the research **Initial email** section (subject,
+  plain-text message and save action) to the Settings tab and activates the **Communication** tab
+  before Settings as a read-only prepared-recipient queue. Persistence is one additive migration:
+  three nullable columns on `research_communication_settings` and a new `research_recipients`
+  table whose status enum has exactly one value, `PREPARED`. The queue is prepared server-side
+  during the research page render from the current published Stage 05 result, is idempotent via a
+  source-run marker, selects one primary per retained company by the documented sales → general →
+  individual mailbox priority with deterministic tie-breaks, preserves remaining usable addresses
+  as alternatives, excludes partner/uncertain/excluded contacts, and is read with SQL search and
+  pagination. The single canonical proof passed with exit code 0: API build, **44/44** focused
+  backend tests, `verify:web` **194/194** unit tests plus typecheck/lint/format, and `e2e:web`
+  **48/48** scenarios (45 preserved + 3 new), ending
+  `PASS: SDR-009 initial email and recipient queue`. The additive migration is authored but **not
+  deployed**; no email sending, SMTP/IMAP, mailbox synchronization, LLM, research rerun or
+  database change occurred, all 30 pre-existing untracked artifacts remain byte-identical, and no
+  commit or push was performed. SDR-009 is `READY_FOR_HUMAN_REVIEW`; live migration deployment
+  and live acceptance remain for the owner. Evidence:
+  [SDR-009 §9–§12](SDR-009-initial-email-and-recipient-queue.md#9-verification-result).
+- On 2026-11-27 the owner authorized live deployment and acceptance preparation for SDR-009.
+  Executed: preflight confirmed PostgreSQL 17.11, 12 applied/0 unfinished migrations and exactly
+  the one pending SDR-009 migration, with the published Stage 05 baseline intact (71 accepted,
+  138 usable pairs); a protected 2,553,127-byte custom backup was created at
+  `C:\Users\msmig\Projektai\_backupsForProjects\sdr-assistant-db-20261127-215035` (container/host
+  SHA-256 `6d64e077…599003`, 74 archive entries, 11 `TABLE DATA`, complete read, restricted ACL);
+  `prisma migrate deploy` applied only `20261127220000_add_research_recipients` (exit 0; ledger
+  13/0/0; checksum matches the repository file) and `prisma migrate status` reports up to date.
+  The old dev stack was stopped and a fresh detached stack brought up (API `127.0.0.1:4000`
+  PID 101888, web `127.0.0.1:3000` PID 46176; health `{"status":"ok"}`, research page 200, no
+  error-level logs). All nine pre-existing table fingerprints are unchanged; the SDR-008
+  assignment still references the same enabled account and the initial email remains unset. The
+  live queue was prepared only through the application page render: **71 prepared primary
+  recipients, 67 alternatives, 0 duplicate-skipped companies, all `PREPARED`**, 138 total usable
+  pairs accounted for, no excluded/partner/uncertain contact in the queue, and Brolis Timber
+  resolved to its general mailbox with four alternatives. Two further page loads left the queue
+  fingerprint and marker unchanged; live browser checks confirmed the Communication and Settings
+  tabs with no page errors. No code, configuration, email, SMTP/IMAP or provider action was
+  taken, the owner's initial-email entry remains manual, and no commit or push was performed.
+  SDR-009 remains `READY_FOR_HUMAN_REVIEW` pending human acceptance. Evidence:
+  [SDR-009 §13](SDR-009-initial-email-and-recipient-queue.md#13-live-deployment-and-acceptance-preparation--2026-11-27).
+- On 2026-11-27 the human owner accepted SDR-009 as `DONE / HUMAN_APPROVED` after confirming that
+  the initial email settings work correctly in the live application. The accepted implementation
+  proof, protected backup, applied migration, service restart, live queue verification and tab
+  verification are preserved in the task record (§9, §13, §14). The closure scope is limited to
+  the SDR-009 deliverables (19 modified and 15 added files: research-communication backend and
+  additive migration, research/web communication entities and UI, tests, the Playwright mock and
+  scenarios, and these task records), excluding credentials and `.env`, private email content,
+  real contact data, the git-ignored live screenshots and rendered HTML, generated/build/test/log
+  artifacts and the 30 pre-existing untracked research/tooling artifacts. The scope was committed
+  with `feat: add initial email settings and automatic recipient queue` and pushed to `origin
+  main` without force; the exact commit hash, staged-manifest comparison, remote verification and
+  post-commit working-tree status are recorded in the completion report (a commit cannot contain
+  its own hash). SDR-010 was not started.

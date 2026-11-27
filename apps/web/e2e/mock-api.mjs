@@ -814,6 +814,105 @@ const STAGE05_RESULTS = [
   },
 ];
 
+/**
+ * Prepared recipient queue for `job-profiles`.
+ *
+ * These entries mirror what the real deterministic selection produces from
+ * `STAGE05_RESULTS`: the sales mailbox wins for Alpha, the partner mailbox never
+ * enters the queue, and the excluded Delta company is absent. Totals are global;
+ * `totalItems` reflects only the current search.
+ */
+const RECIPIENT_QUEUE_ITEMS = [
+  {
+    id: 'recipient-alpha',
+    companyName: 'Alpha Sauna OÜ',
+    domain: 'alpha-sauna.test',
+    primaryEmail: 'sales@alpha-sauna.test',
+    alternativeEmails: ['info@alpha-sauna.test'],
+    selectionReason: 'SALES_DEPARTMENT',
+    status: 'PREPARED',
+    createdAt: '2026-11-21T09:31:00.000Z',
+    updatedAt: '2026-11-21T09:31:00.000Z',
+  },
+  {
+    id: 'recipient-beta',
+    companyName: null,
+    domain: 'beta-wood.test',
+    primaryEmail: 'hello@beta-wood.test',
+    alternativeEmails: [],
+    selectionReason: 'GENERAL_MAILBOX',
+    status: 'PREPARED',
+    createdAt: '2026-11-21T09:31:00.000Z',
+    updatedAt: '2026-11-21T09:31:00.000Z',
+  },
+  {
+    id: 'recipient-gamma',
+    companyName: 'Gamma Heat GmbH',
+    domain: 'gamma-heat.test',
+    primaryEmail: 'team@gamma-heat.test',
+    alternativeEmails: [],
+    selectionReason: 'GENERAL_MAILBOX',
+    status: 'PREPARED',
+    createdAt: '2026-11-21T09:31:00.000Z',
+    updatedAt: '2026-11-21T09:31:00.000Z',
+  },
+];
+
+function recipientQueuePayload(researchId, searchParams) {
+  if (researchId !== 'job-profiles') {
+    return {
+      publication: null,
+      prepared: false,
+      totals: {
+        retainedCompanies: 0,
+        preparedRecipients: 0,
+        alternativeContacts: 0,
+      },
+      items: [],
+      page: 1,
+      pageSize: 25,
+      totalItems: 0,
+    };
+  }
+
+  const query = (searchParams.get('q') ?? '').trim().toLowerCase();
+  const page = Math.max(
+    1,
+    Number.parseInt(searchParams.get('page') ?? '1', 10) || 1,
+  );
+  const pageSize = Math.max(
+    1,
+    Number.parseInt(searchParams.get('pageSize') ?? '25', 10) || 25,
+  );
+  const filtered =
+    query === ''
+      ? RECIPIENT_QUEUE_ITEMS
+      : RECIPIENT_QUEUE_ITEMS.filter((item) =>
+          [item.companyName ?? '', item.domain, item.primaryEmail]
+            .join(' ')
+            .toLowerCase()
+            .includes(query),
+        );
+  const start = (page - 1) * pageSize;
+
+  return {
+    publication: {
+      runId: STAGE05_RUN_ID,
+      publishedAt: STAGE05_RUN.publishedAt,
+    },
+    prepared: true,
+    totals: {
+      retainedCompanies: 3,
+      preparedRecipients: 3,
+      alternativeContacts: 1,
+    },
+    items: filtered.slice(start, start + pageSize),
+    page,
+    pageSize,
+    totalItems: filtered.length,
+  };
+}
+
 const STATIC_JOBS = {
   'job-done': job({
     status: 'COMPLETED',
@@ -891,6 +990,9 @@ let emailAccountSequence = 0;
  * prevents but which the UI must still render safely.
  */
 const researchCommunication = new Map();
+
+/** Owner-authored initial emails for the SDR-009 scenarios. */
+const researchInitialEmail = new Map();
 
 const EMAIL_ACCOUNT_FIELDS = [
   'name',
@@ -1065,6 +1167,7 @@ function reset() {
   emailAccounts.clear();
   emailAccountSequence = 0;
   researchCommunication.clear();
+  researchInitialEmail.clear();
   SETTINGS['research.pageCollection.resultsPerQuery'] = 20;
 }
 
@@ -1379,7 +1482,60 @@ const server = createServer(async (request, response) => {
 
     return send(response, 200, {
       emailAccountId: researchCommunication.get(id) ?? null,
+      initialEmail: researchInitialEmail.get(id) ?? null,
     });
+  }
+
+  const initialEmailMatch =
+    /^\/research\/([^/]+)\/communication\/initial-email$/.exec(path);
+
+  if (initialEmailMatch !== null && method === 'PATCH') {
+    const id = decodeURIComponent(initialEmailMatch[1]);
+    const body = await readBody(request);
+    const subject = typeof body.subject === 'string' ? body.subject.trim() : '';
+    const message = typeof body.body === 'string' ? body.body.trim() : '';
+
+    if (subject === '' || message === '') {
+      return send(response, 400, {
+        statusCode: 400,
+        message: ['The initial email subject and message are required.'],
+        error: 'Bad Request',
+      });
+    }
+    if (subject.length > 300 || message.length > 20000) {
+      return send(response, 400, {
+        statusCode: 400,
+        message: ['The initial email is too long.'],
+        error: 'Bad Request',
+      });
+    }
+
+    const saved = { subject, body: message };
+    researchInitialEmail.set(id, saved);
+
+    return send(response, 200, saved);
+  }
+
+  const recipientQueuePrepareMatch =
+    /^\/research\/([^/]+)\/communication\/recipient-queue\/prepare$/.exec(path);
+
+  if (recipientQueuePrepareMatch !== null && method === 'POST') {
+    const id = decodeURIComponent(recipientQueuePrepareMatch[1]);
+
+    return send(
+      response,
+      200,
+      recipientQueuePayload(id, new URLSearchParams()),
+    );
+  }
+
+  const recipientQueueMatch =
+    /^\/research\/([^/]+)\/communication\/recipient-queue$/.exec(path);
+
+  if (recipientQueueMatch !== null && method === 'GET') {
+    const id = decodeURIComponent(recipientQueueMatch[1]);
+
+    return send(response, 200, recipientQueuePayload(id, url.searchParams));
   }
 
   const communicationEmailAccountMatch =

@@ -52,6 +52,7 @@ model Research {
   stage03Result   ResearchStage03?
   leadQualificationRuns LeadQualificationRun[]
   communicationSettings ResearchCommunicationSettings?
+  recipients      ResearchRecipient[]
 
   @@map("researches")
 }
@@ -165,16 +166,74 @@ model EmailAccount {
 /// explicit configuration; future communication settings belong to this model.
 /// The account relation is restricted on delete so a still-assigned account is
 /// never silently unassigned; disabling an account keeps the assignment intact.
+///
+/// The initial email is owner-authored plain text shared by every recipient.
+/// `null` means not configured. The recipient-queue marker records which
+/// published Stage 05 run the prepared queue was built from; it makes queue
+/// preparation idempotent without a second state table.
 model ResearchCommunicationSettings {
   researchId    String       @id
   research      Research     @relation(fields: [researchId], references: [id], onDelete: Cascade)
   emailAccountId String?
   emailAccount  EmailAccount? @relation(fields: [emailAccountId], references: [id], onDelete: Restrict)
+  initialEmailSubject String?
+  initialEmailBody    String?
+  recipientQueueSourceRunId String?
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
 
   @@index([emailAccountId])
   @@map("research_communication_settings")
+}
+
+/// Why one mailbox was selected as the company's primary recipient. Derived
+/// deterministically from published Stage 05 mailbox metadata; no employee
+/// identity or position is inferred.
+enum RecipientSelectionReason {
+  /// A sales or commercial department mailbox.
+  SALES_DEPARTMENT
+  /// A general company mailbox such as info@ or office@.
+  GENERAL_MAILBOX
+  /// A suitable individual company-association mailbox.
+  INDIVIDUAL_CONTACT
+}
+
+/// Lifecycle of one prepared recipient. V1 has exactly one value on purpose:
+/// a prepared recipient is not eligible, authorized or sent, and no state may
+/// claim otherwise. Sending eligibility, suppression and delivery outcomes
+/// belong to separate future records.
+enum RecipientQueueStatus {
+  PREPARED
+}
+
+/// One prepared initial-email recipient per retained Stage 05 company.
+///
+/// The queue is derived, not sent: `status` is always `PREPARED` in V1. The
+/// source publication run and Stage 05 result id preserve provenance. A newer
+/// published run replaces the prepared set while no delivery history exists;
+/// once sending is introduced, recipients with history must be preserved and
+/// marked superseded instead of deleted. Alternative addresses are kept as the
+/// future fallback input for delivery failures.
+model ResearchRecipient {
+  id                 String                  @id @default(cuid())
+  researchId         String
+  research           Research                @relation(fields: [researchId], references: [id], onDelete: Cascade)
+  sourceRunId        String
+  sourceResultId     String
+  sourceCompanyIndex Int
+  domain             String
+  companyName        String?
+  primaryEmail       String
+  alternativeEmails  String[]                @default([])
+  selectionReason    RecipientSelectionReason
+  status             RecipientQueueStatus    @default(PREPARED)
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
+
+  @@unique([researchId, domain])
+  @@unique([researchId, primaryEmail])
+  @@index([researchId, status])
+  @@map("research_recipients")
 }
 
 /// One stored value per registered setting key. The code registry owns the

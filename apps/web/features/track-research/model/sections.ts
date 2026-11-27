@@ -1,5 +1,10 @@
 export type ResearchSection =
-  'overview' | 'companies' | 'market' | 'contacts' | 'settings';
+  | 'overview'
+  | 'companies'
+  | 'market'
+  | 'contacts'
+  | 'communication'
+  | 'settings';
 
 export const RESEARCH_SECTIONS: readonly {
   value: ResearchSection;
@@ -9,5 +14,6 @@ export const RESEARCH_SECTIONS: readonly {
   { value: 'companies', label: 'Companies' },
   { value: 'market', label: 'Market' },
   { value: 'contacts', label: 'Contacts' },
+  { value: 'communication', label: 'Communication' },
   { value: 'settings', label: 'Settings' },
 ];

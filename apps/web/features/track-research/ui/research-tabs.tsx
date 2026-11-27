@@ -13,9 +13,8 @@ type ResearchTabsProps = {
 /**
  * Section navigation for one research.
  *
- * Communication remains the reserved, non-interactive planned label: SDR-008
- * adds the implemented Settings tab and does not add communication actions or
- * placeholder controls.
+ * Communication is the read-only prepared-recipient queue. It contains no
+ * sending controls or placeholder actions.
  */
 export function ResearchTabs({ active, onChange, counts }: ResearchTabsProps) {
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>): void {
@@ -91,11 +90,6 @@ export function ResearchTabs({ active, onChange, counts }: ResearchTabsProps) {
           );
         })}
       </div>
-
-      <span className="research-tab planned">
-        Communication
-        <span className="research-tab-note">Planned</span>
-      </span>
     </div>
   );
 }

@@ -261,12 +261,10 @@ test('presents the versioned company workspace, offers, prices and contacts', as
   await expect(page.getByText('No usable company email found')).toBeVisible();
   await page.getByRole('button', { name: /Retained companies/ }).click();
 
-  await expect(page.locator('.research-tab.planned')).toContainText(
-    'Communication',
-  );
-  await expect(page.getByRole('button', { name: /Communication/ })).toHaveCount(
-    0,
-  );
+  const communicationTab = page.getByRole('tab', { name: /Communication/ });
+  await expect(communicationTab).toContainText('3');
+  await expect(communicationTab).toHaveAttribute('aria-selected', 'false');
+  await expect(page.locator('.research-tab.planned')).toHaveCount(0);
 
   await page.getByRole('button', { name: 'Dark' }).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
@@ -285,6 +283,7 @@ test('presents the market table with prices, filters, evidence and safe links', 
     'Companies 6',
     'Market 5',
     'Contacts 3',
+    'Communication 3',
     'Settings',
   ]);
 

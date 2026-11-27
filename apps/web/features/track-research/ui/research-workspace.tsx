@@ -7,15 +7,18 @@ import type { ResearchResponse } from '@/entities/research';
 import {
   parseResearchResult,
   resumeResearch,
+  type ResearchInitialEmail,
 } from '@/entities/research/client';
 import { formatDateTime, shortenId } from '@/shared/lib/format';
 import { toast } from '@/shared/lib/toast';
 
 import type { ResearchSection } from '../model/sections';
+import type { RecipientQueueData } from '../model/recipient-queue';
 import type { ResearchCommunicationSettingsData } from '../model/research-settings';
 import { buildMarketSummary } from '../model/market-view';
 import { useResearchPolling } from '../model/use-research-polling';
 import { useStage05Contacts } from '../model/use-stage05-contacts';
+import { ResearchCommunication } from './research-communication';
 import { ResearchCompanies } from './research-companies';
 import { ResearchContacts } from './research-contacts';
 import { ResearchMarket } from './research-market';
@@ -29,6 +32,7 @@ type ResearchWorkspaceProps = {
   initialResearch: ResearchResponse;
   productName: string;
   communication: ResearchCommunicationSettingsData;
+  recipientQueue: RecipientQueueData;
 };
 
 const SPINNER_CLASSES =
@@ -77,6 +81,7 @@ export function ResearchWorkspace({
   initialResearch,
   productName,
   communication: initialCommunication,
+  recipientQueue,
 }: ResearchWorkspaceProps) {
   const { research, isPolling, errorMessage, transientError, isStale, retry } =
     useResearchPolling(initialResearch);
@@ -127,6 +132,12 @@ export function ResearchWorkspace({
   function handleEmailAccountChange(emailAccountId: string | null): void {
     setCommunication((current) =>
       current.state === 'ready' ? { ...current, emailAccountId } : current,
+    );
+  }
+
+  function handleInitialEmailChange(initialEmail: ResearchInitialEmail): void {
+    setCommunication((current) =>
+      current.state === 'ready' ? { ...current, initialEmail } : current,
     );
   }
 
@@ -281,6 +292,10 @@ export function ResearchWorkspace({
             stage05.state.phase === 'completed'
               ? stage05.state.retained.length
               : null,
+          communication:
+            recipientQueue.state === 'ready'
+              ? recipientQueue.queue.totals.preparedRecipients
+              : null,
         }}
       />
 
@@ -308,11 +323,19 @@ export function ResearchWorkspace({
           <ResearchContacts state={stage05.state} onRetry={stage05.retry} />
         )}
 
+        {section === 'communication' && (
+          <ResearchCommunication
+            researchId={research.id}
+            initial={recipientQueue}
+          />
+        )}
+
         {section === 'settings' && (
           <ResearchSettings
             researchId={research.id}
             communication={communication}
             onEmailAccountChange={handleEmailAccountChange}
+            onInitialEmailChange={handleInitialEmailChange}
           />
         )}
       </div>

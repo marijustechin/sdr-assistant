@@ -1,16 +1,18 @@
 import type { EmailAccount } from '@/entities/email-account/client';
+import type { ResearchInitialEmail } from '@/entities/research/client';
 
 /**
  * Research communication data loaded by the research page.
  *
  * Both the assignment and the account list must load for the Settings tab to
  * work; a failure is rendered inside the tab without affecting the research
- * overview, companies, market or contacts.
+ * overview, companies, market, contacts or communication queue.
  */
 export type ResearchCommunicationSettingsData =
   | {
       readonly state: 'ready';
       readonly emailAccountId: string | null;
+      readonly initialEmail: ResearchInitialEmail | null;
       readonly accounts: readonly EmailAccount[];
     }
   | { readonly state: 'error'; readonly message: string };

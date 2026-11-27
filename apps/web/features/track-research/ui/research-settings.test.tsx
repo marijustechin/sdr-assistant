@@ -10,15 +10,25 @@ import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { EmailAccount } from '@/entities/email-account/client';
+import type { ResearchInitialEmail } from '@/entities/research/client';
 import { getToasts, toast } from '@/shared/lib/toast';
 
-const { updateResearchEmailAccountAction, refresh } = vi.hoisted(() => ({
+const {
+  updateResearchEmailAccountAction,
+  updateResearchInitialEmailAction,
+  refresh,
+} = vi.hoisted(() => ({
   updateResearchEmailAccountAction: vi.fn(),
+  updateResearchInitialEmailAction: vi.fn(),
   refresh: vi.fn(),
 }));
 
 vi.mock('../api/update-email-account-action', () => ({
   updateResearchEmailAccountAction,
+}));
+
+vi.mock('../api/update-initial-email-action', () => ({
+  updateResearchInitialEmailAction,
 }));
 
 vi.mock('next/navigation', () => ({
@@ -82,29 +92,48 @@ const DISABLED = account({
   enabled: false,
 });
 
+const SAVED_INITIAL_EMAIL: ResearchInitialEmail = {
+  subject: 'Supply partnership',
+  body: 'Hello,\n\nWe would like to discuss supply.',
+};
+
+type ReadyCommunication = Extract<
+  ResearchCommunicationSettingsData,
+  { state: 'ready' }
+>;
+
+function readyCommunication(
+  overrides: Partial<Omit<ReadyCommunication, 'state'>> = {},
+): ReadyCommunication {
+  return {
+    state: 'ready',
+    emailAccountId: null,
+    initialEmail: null,
+    accounts: [ENABLED, SECOND, DISABLED],
+    ...overrides,
+  };
+}
+
 type RenderOptions = {
   readonly communication?: ResearchCommunicationSettingsData;
   readonly onEmailAccountChange?: (emailAccountId: string | null) => void;
+  readonly onInitialEmailChange?: (initialEmail: ResearchInitialEmail) => void;
 };
 
 function renderSettings(options: RenderOptions = {}) {
   const onEmailAccountChange = options.onEmailAccountChange ?? vi.fn();
+  const onInitialEmailChange = options.onInitialEmailChange ?? vi.fn();
 
   render(
     <ResearchSettings
       researchId="research-1"
-      communication={
-        options.communication ?? {
-          state: 'ready',
-          emailAccountId: null,
-          accounts: [ENABLED, SECOND, DISABLED],
-        }
-      }
+      communication={options.communication ?? readyCommunication()}
       onEmailAccountChange={onEmailAccountChange}
+      onInitialEmailChange={onInitialEmailChange}
     />,
   );
 
-  return { onEmailAccountChange };
+  return { onEmailAccountChange, onInitialEmailChange };
 }
 
 function optionTexts(select: HTMLSelectElement): string[] {
@@ -114,11 +143,12 @@ function optionTexts(select: HTMLSelectElement): string[] {
 afterEach(() => {
   cleanup();
   updateResearchEmailAccountAction.mockReset();
+  updateResearchInitialEmailAction.mockReset();
   refresh.mockReset();
   toast.clear();
 });
 
-describe('ResearchSettings', () => {
+describe('ResearchSettings email account', () => {
   it('shows the unassigned state and offers only enabled accounts', () => {
     renderSettings();
 
@@ -145,11 +175,10 @@ describe('ResearchSettings', () => {
 
   it('shows the assigned account, its address and both verification results', () => {
     renderSettings({
-      communication: {
-        state: 'ready',
+      communication: readyCommunication({
         emailAccountId: ENABLED.id,
         accounts: [ENABLED],
-      },
+      }),
     });
 
     expect(screen.getByText(ENABLED.name)).toBeTruthy();
@@ -197,11 +226,10 @@ describe('ResearchSettings', () => {
       emailAccountId: null,
     });
     const { onEmailAccountChange } = renderSettings({
-      communication: {
-        state: 'ready',
+      communication: readyCommunication({
         emailAccountId: ENABLED.id,
         accounts: [ENABLED],
-      },
+      }),
     });
 
     fireEvent.click(screen.getByRole('button', { name: 'Remove assignment' }));
@@ -220,11 +248,10 @@ describe('ResearchSettings', () => {
 
   it('keeps a disabled assigned account visible and out of the select', () => {
     renderSettings({
-      communication: {
-        state: 'ready',
+      communication: readyCommunication({
         emailAccountId: DISABLED.id,
         accounts: [ENABLED, DISABLED],
-      },
+      }),
     });
 
     expect(screen.getByText(DISABLED.name)).toBeTruthy();
@@ -246,11 +273,10 @@ describe('ResearchSettings', () => {
 
   it('reports a missing assigned account and keeps it removable', () => {
     renderSettings({
-      communication: {
-        state: 'ready',
+      communication: readyCommunication({
         emailAccountId: 'deleted-account',
         accounts: [ENABLED],
-      },
+      }),
     });
 
     expect(
@@ -301,11 +327,9 @@ describe('ResearchSettings', () => {
 
   it('explains when no enabled account exists', () => {
     renderSettings({
-      communication: {
-        state: 'ready',
-        emailAccountId: null,
+      communication: readyCommunication({
         accounts: [DISABLED],
-      },
+      }),
     });
 
     expect(
@@ -314,5 +338,138 @@ describe('ResearchSettings', () => {
     expect(
       screen.getByRole('link', { name: 'Manage email accounts' }),
     ).toBeTruthy();
+  });
+});
+
+describe('ResearchSettings initial email', () => {
+  it('shows empty fields when no initial email is saved', () => {
+    renderSettings();
+
+    expect(
+      screen.getByRole('heading', { level: 2, name: 'Initial email' }),
+    ).toBeTruthy();
+    expect(screen.getByLabelText<HTMLInputElement>('Subject').value).toBe('');
+    expect(screen.getByLabelText<HTMLTextAreaElement>('Message').value).toBe(
+      '',
+    );
+    expect(
+      screen.getByRole('button', { name: 'Save initial email' }),
+    ).toHaveProperty('disabled', true);
+  });
+
+  it('restores the saved subject and message', () => {
+    renderSettings({
+      communication: readyCommunication({
+        initialEmail: SAVED_INITIAL_EMAIL,
+      }),
+    });
+
+    expect(screen.getByLabelText<HTMLInputElement>('Subject').value).toBe(
+      SAVED_INITIAL_EMAIL.subject,
+    );
+    expect(screen.getByLabelText<HTMLTextAreaElement>('Message').value).toBe(
+      SAVED_INITIAL_EMAIL.body,
+    );
+    expect(
+      screen.getByRole('button', { name: 'Save initial email' }),
+    ).toHaveProperty('disabled', false);
+  });
+
+  it('saves through the server action and reports the saved values', async () => {
+    updateResearchInitialEmailAction.mockResolvedValue({
+      ok: true,
+      initialEmail: {
+        subject: 'Trimmed subject',
+        body: 'Trimmed body',
+      },
+    });
+    const { onInitialEmailChange } = renderSettings();
+
+    fireEvent.change(screen.getByLabelText('Subject'), {
+      target: { value: '  Trimmed subject  ' },
+    });
+    fireEvent.change(screen.getByLabelText('Message'), {
+      target: { value: '  Trimmed body  ' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save initial email' }));
+
+    await waitFor(() =>
+      expect(updateResearchInitialEmailAction).toHaveBeenCalledWith(
+        'research-1',
+        '  Trimmed subject  ',
+        '  Trimmed body  ',
+      ),
+    );
+    await waitFor(() =>
+      expect(onInitialEmailChange).toHaveBeenCalledWith({
+        subject: 'Trimmed subject',
+        body: 'Trimmed body',
+      }),
+    );
+    expect(screen.getByLabelText<HTMLInputElement>('Subject').value).toBe(
+      'Trimmed subject',
+    );
+    expect(getToasts().at(-1)?.title).toBe('Initial email saved');
+  });
+
+  it('does not save a blank subject or message', () => {
+    renderSettings();
+
+    fireEvent.change(screen.getByLabelText('Subject'), {
+      target: { value: 'Subject only' },
+    });
+    fireEvent.change(screen.getByLabelText('Message'), {
+      target: { value: '   ' },
+    });
+
+    expect(
+      screen.getByRole('button', { name: 'Save initial email' }),
+    ).toHaveProperty('disabled', true);
+  });
+
+  it('reports an API failure and keeps the draft', async () => {
+    updateResearchInitialEmailAction.mockResolvedValue({
+      ok: false,
+      message: 'The initial email message is required.',
+    });
+    const { onInitialEmailChange } = renderSettings();
+
+    fireEvent.change(screen.getByLabelText('Subject'), {
+      target: { value: 'Subject' },
+    });
+    fireEvent.change(screen.getByLabelText('Message'), {
+      target: { value: 'Body' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save initial email' }));
+
+    await waitFor(() =>
+      expect(getToasts().at(-1)?.title).toBe(
+        'Could not save the initial email',
+      ),
+    );
+    expect(onInitialEmailChange).not.toHaveBeenCalled();
+    expect(screen.getByLabelText<HTMLInputElement>('Subject').value).toBe(
+      'Subject',
+    );
+  });
+
+  it('keeps the saved initial email when the account assignment changes', () => {
+    renderSettings({
+      communication: readyCommunication({
+        emailAccountId: ENABLED.id,
+        accounts: [ENABLED],
+        initialEmail: SAVED_INITIAL_EMAIL,
+      }),
+    });
+
+    expect(screen.getByLabelText<HTMLInputElement>('Subject').value).toBe(
+      SAVED_INITIAL_EMAIL.subject,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove assignment' }));
+
+    expect(screen.getByLabelText<HTMLTextAreaElement>('Message').value).toBe(
+      SAVED_INITIAL_EMAIL.body,
+    );
   });
 });

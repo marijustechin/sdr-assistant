@@ -2,10 +2,36 @@ export {
   fetchResearch,
   fetchResearchCommunication,
   fetchResearches,
+  prepareResearchRecipientQueue,
   updateResearchEmailAccount,
+  updateResearchInitialEmail,
 } from './api/research.server';
-export { researchEmailAccountAssignmentSchema } from './model/communication';
-export type { ResearchEmailAccountAssignment } from './model/communication';
+export {
+  researchCommunicationSchema,
+  researchEmailAccountAssignmentSchema,
+  researchInitialEmailSchema,
+} from './model/communication';
+export type {
+  ResearchCommunication,
+  ResearchEmailAccountAssignment,
+  ResearchInitialEmail,
+} from './model/communication';
+export {
+  recipientQueueItemSchema,
+  recipientQueuePublicationSchema,
+  recipientQueueSchema,
+  recipientQueueStatusSchema,
+  recipientQueueTotalsSchema,
+  recipientSelectionReasonSchema,
+} from './model/recipient-queue';
+export type {
+  RecipientQueue,
+  RecipientQueueItem,
+  RecipientQueuePublication,
+  RecipientQueueStatus,
+  RecipientQueueTotals,
+  RecipientSelectionReason,
+} from './model/recipient-queue';
 export {
   PROFILING_SUMMARY_KEYS,
   RESULT_AVAILABILITY_LABELS,

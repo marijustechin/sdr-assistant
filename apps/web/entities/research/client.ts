@@ -6,8 +6,32 @@
  * `API_URL` into the client bundle.
  */
 export { fetchResearchStatus, resumeResearch } from './api/research.client';
-export { researchEmailAccountAssignmentSchema } from './model/communication';
-export type { ResearchEmailAccountAssignment } from './model/communication';
+export { fetchResearchRecipientQueue } from './api/recipient-queue.client';
+export type { RecipientQueueRequest } from './api/recipient-queue.client';
+export {
+  researchEmailAccountAssignmentSchema,
+  researchInitialEmailSchema,
+} from './model/communication';
+export type {
+  ResearchEmailAccountAssignment,
+  ResearchInitialEmail,
+} from './model/communication';
+export {
+  recipientQueueItemSchema,
+  recipientQueuePublicationSchema,
+  recipientQueueSchema,
+  recipientQueueStatusSchema,
+  recipientQueueTotalsSchema,
+  recipientSelectionReasonSchema,
+} from './model/recipient-queue';
+export type {
+  RecipientQueue,
+  RecipientQueueItem,
+  RecipientQueuePublication,
+  RecipientQueueStatus,
+  RecipientQueueTotals,
+  RecipientSelectionReason,
+} from './model/recipient-queue';
 export {
   PROFILING_SUMMARY_KEYS,
   RESULT_AVAILABILITY_LABELS,
