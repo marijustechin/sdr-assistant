@@ -4,6 +4,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
   type OnModuleInit,
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
@@ -21,6 +22,10 @@ import { PageAssessmentService } from './stages/03-page-assessment/page-assessme
 import { PAGE_ASSESSMENT_PROMPT_VERSION } from './stages/03-page-assessment/page-assessment.prompt.js';
 import { languageByCountry } from './lib/utils.js';
 import { CompanyProfilingService } from './stages/04-company-profiling/company-profiling.service.js';
+import {
+  ContactDiscoveryAutomationService,
+  STAGE05_PENDING_STAGE,
+} from '../contact-discovery-pipeline/contact-discovery.automation.js';
 import {
   buildFinalResearchResult,
   type FinalResearchResult,
@@ -48,6 +53,8 @@ export class ResearchService implements OnModuleInit {
     private readonly companyProfilingService: CompanyProfilingService,
     private readonly prismaService: PrismaService,
     private readonly settingsService: SettingsService,
+    @Optional()
+    private readonly contactDiscoveryAutomation?: ContactDiscoveryAutomationService,
   ) {}
 
   private readonly logger = new Logger(ResearchService.name);
@@ -129,7 +136,10 @@ export class ResearchService implements OnModuleInit {
       ...safeJob
     } = job;
 
-    return safeJob;
+    return {
+      ...safeJob,
+      stage: publicStage(safeJob.stage),
+    };
   }
 
   async getAll() {
@@ -142,7 +152,10 @@ export class ResearchService implements OnModuleInit {
         executionToken: _executionToken,
         executionLeaseUntil: _executionLeaseUntil,
         ...safeJob
-      }) => safeJob,
+      }) => ({
+        ...safeJob,
+        stage: publicStage(safeJob.stage),
+      }),
     );
   }
 
@@ -284,6 +297,7 @@ export class ResearchService implements OnModuleInit {
         executionToken,
         buildFinalResearchResult({ profiling: profiledCompanies, resultsPerQuery }),
       );
+      await this.startAutomaticStage05(jobId);
     } catch (error) {
       await this.prismaService.research.updateMany({
         where: { id: jobId, executionToken },
@@ -295,6 +309,24 @@ export class ResearchService implements OnModuleInit {
           error: error instanceof Error ? error.message : String(error),
         },
       });
+    }
+  }
+
+  /**
+   * Starts Stage 05 after the Stage 04 result is committed. The automation
+   * service contains its own failure handling, so a Stage 05 failure can never
+   * turn a successfully completed Stage 04 run into a failed one.
+   */
+  private async startAutomaticStage05(jobId: string): Promise<void> {
+    if (this.contactDiscoveryAutomation === undefined) return;
+    try {
+      await this.contactDiscoveryAutomation.afterStage04Completed(jobId);
+    } catch (error) {
+      this.logger.error(
+        `Stage 05 automation failed after Stage 04 completion for ${jobId}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
     }
   }
 
@@ -316,7 +348,7 @@ export class ResearchService implements OnModuleInit {
       where: { id: jobId, executionToken },
       data: {
         status: 'COMPLETED',
-        stage: null,
+        stage: STAGE05_PENDING_STAGE,
         executionToken: null,
         executionLeaseUntil: null,
         result: asJson(result),
@@ -493,6 +525,7 @@ export class ResearchService implements OnModuleInit {
         executionToken,
         buildFinalResearchResult({ profiling: profiledCompanies }),
       );
+      await this.startAutomaticStage05(jobId);
     } catch (error) {
       await this.prismaService.research.updateMany({
         where: { id: jobId, executionToken },
@@ -515,6 +548,10 @@ export class ResearchService implements OnModuleInit {
  * interfaces do not declare. The value is already plain JSON (`null`s, strings,
  * numbers, arrays), so the cast bridges the type only, not the data.
  */
+function publicStage(stage: string | null): string | null {
+  return stage === STAGE05_PENDING_STAGE ? null : stage;
+}
+
 function asJson(value: object): Prisma.InputJsonValue {
   return value as unknown as Prisma.InputJsonValue;
 }

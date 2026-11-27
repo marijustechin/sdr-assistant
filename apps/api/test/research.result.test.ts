@@ -11,6 +11,7 @@ import type { ProductIdentificationService } from '../src/modules/research/stage
 import type { CompanyProfilingService } from '../src/modules/research/stages/04-company-profiling/company-profiling.service.js';
 import type { PrismaService } from '../src/modules/prisma/prisma.service.js';
 import type { SettingsService } from '../src/modules/settings/settings.service.js';
+import type { ContactDiscoveryAutomationService } from '../src/modules/contact-discovery-pipeline/contact-discovery.automation.js';
 
 /**
  * Controlled synthetic stage-04 result. The aggregate shape the existing assertions
@@ -166,13 +167,22 @@ type Harness = {
   researchCompletion: ReturnType<typeof vi.fn>;
   profile: ReturnType<typeof vi.fn>;
   completed: Promise<JobRow>;
+  failed: Promise<JobRow>;
 };
 
-function makeHarness(savedResult: unknown = buildSavedResult()): Harness {
+function makeHarness(
+  savedResult: unknown = buildSavedResult(),
+  contactDiscoveryAutomation?: ContactDiscoveryAutomationService,
+  profiling: () => Promise<unknown> = async () => savedResult,
+): Harness {
   const rows = new Map<string, JobRow>();
   let resolveCompleted: (row: JobRow) => void = () => {};
   const completed = new Promise<JobRow>((resolve) => {
     resolveCompleted = resolve;
+  });
+  let resolveFailed: (row: JobRow) => void = () => {};
+  const failed = new Promise<JobRow>((resolve) => {
+    resolveFailed = resolve;
   });
 
   const research = {
@@ -231,6 +241,7 @@ function makeHarness(savedResult: unknown = buildSavedResult()): Harness {
         }
         rows.set(where.id, next);
         if (data.status === 'COMPLETED') resolveCompleted(next);
+        if (data.status === 'FAILED') resolveFailed(next);
         return { count: 1 };
       },
     ),
@@ -253,7 +264,7 @@ function makeHarness(savedResult: unknown = buildSavedResult()): Harness {
   }));
   const collect = vi.fn(async () => [PAGE]);
   const assessPages = vi.fn(async () => ASSESSMENT);
-  const profile = vi.fn(async () => savedResult);
+  const profile = vi.fn(profiling);
 
   const service = new ResearchService(
     { identify } as unknown as ProductIdentificationService,
@@ -262,6 +273,7 @@ function makeHarness(savedResult: unknown = buildSavedResult()): Harness {
     { profile } as unknown as CompanyProfilingService,
     prisma,
     { getNumber: vi.fn(async () => 5) } as unknown as SettingsService,
+    contactDiscoveryAutomation,
   );
 
   return {
@@ -271,6 +283,7 @@ function makeHarness(savedResult: unknown = buildSavedResult()): Harness {
     researchCompletion: research.updateMany,
     profile,
     completed,
+    failed,
   };
 }
 
@@ -331,6 +344,8 @@ describe('Research result persistence', () => {
     expect(named?.offers.every((offer) => offer.market.status === 'target')).toBe(true);
 
     expect(completedRow.status).toBe('COMPLETED');
+    expect(completedRow.stage).toBe('05-contact-discovery-pending');
+    expect(returned.stage).toBeNull();
     expect(
       harness.researchCompletion.mock.calls.filter(
         (call) =>
@@ -352,6 +367,71 @@ describe('Research result persistence', () => {
     );
   });
 
+  it('starts Stage 05 after a successful Stage 04 completion', async () => {
+    const afterStage04Completed = vi.fn(async () => undefined);
+    const harness = makeHarness(buildSavedResult(), {
+      afterStage04Completed,
+    } as unknown as ContactDiscoveryAutomationService);
+    const dto: CreateResearchDto = {
+      name: 'Synthetic product',
+      description: 'Synthetic description',
+      country: 'Lithuania',
+      productId: 'product-1',
+    };
+
+    await harness.service.start(dto);
+    await harness.completed;
+    await vi.waitFor(() =>
+      expect(afterStage04Completed).toHaveBeenCalledTimes(1),
+    );
+    expect(afterStage04Completed).toHaveBeenCalledWith('job-1');
+  });
+
+  it('does not start Stage 05 when Stage 04 fails', async () => {
+    const afterStage04Completed = vi.fn(async () => undefined);
+    const harness = makeHarness(
+      buildSavedResult(),
+      { afterStage04Completed } as unknown as ContactDiscoveryAutomationService,
+      async () => {
+        throw new Error('stage 04 failed');
+      },
+    );
+    const dto: CreateResearchDto = {
+      name: 'Synthetic product',
+      description: 'Synthetic description',
+      country: 'Lithuania',
+      productId: 'product-1',
+    };
+
+    await harness.service.start(dto);
+    await harness.failed;
+    await vi.waitFor(() => expect(harness.profile).toHaveBeenCalledTimes(1));
+    expect(afterStage04Completed).not.toHaveBeenCalled();
+    expect(harness.rows.get('job-1')?.stage).toBeNull();
+  });
+
+  it('keeps Stage 04 COMPLETED when Stage 05 startup fails', async () => {
+    const afterStage04Completed = vi.fn(async () => {
+      throw new Error('stage 05 failed');
+    });
+    const harness = makeHarness(buildSavedResult(), {
+      afterStage04Completed,
+    } as unknown as ContactDiscoveryAutomationService);
+    const dto: CreateResearchDto = {
+      name: 'Synthetic product',
+      description: 'Synthetic description',
+      country: 'Lithuania',
+      productId: 'product-1',
+    };
+
+    await harness.service.start(dto);
+    const completed = await harness.completed;
+    await vi.waitFor(() =>
+      expect(afterStage04Completed).toHaveBeenCalledTimes(1),
+    );
+    expect(completed.status).toBe('COMPLETED');
+    expect(harness.rows.get('job-1')?.status).toBe('COMPLETED');
+  });
   it('keeps legacy results without companies readable', async () => {
     const harness = makeHarness();
     harness.rows.set('legacy-job', {

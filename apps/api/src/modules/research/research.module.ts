@@ -7,8 +7,10 @@ import { PageCollectionService } from './stages/02-page-collection/page-collecti
 import { SettingsService } from '../settings/settings.service.js';
 import { PageAssessmentService } from './stages/03-page-assessment/page-assessment.service.js';
 import { CompanyProfilingService } from './stages/04-company-profiling/company-profiling.service.js';
+import { ContactDiscoveryModule } from '../contact-discovery-pipeline/contact-discovery.module.js';
 
 @Module({
+  imports: [ContactDiscoveryModule],
   controllers: [ResearchController],
   providers: [
     ResearchService,

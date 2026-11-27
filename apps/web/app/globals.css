@@ -1637,3 +1637,90 @@
     }
   }
 }
+.stage05-run-line {
+  margin: 0.15rem 0 0;
+  font-size: 0.8rem;
+}
+
+.stage05-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 0.72rem;
+  font-weight: 650;
+}
+
+.segmented-control {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.8rem 0;
+}
+
+.stage05-search {
+  max-width: 34rem;
+}
+
+.stage05-company-list,
+.stage05-excluded-list {
+  gap: 0.6rem;
+}
+
+.contact-row.stage05-company {
+  display: block;
+  padding: 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+}
+
+.stage05-company-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.55rem;
+}
+
+.stage05-company-heading a {
+  text-decoration: none;
+}
+
+.stage05-details {
+  margin-top: 0.7rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--border);
+}
+
+.stage05-details > summary {
+  cursor: pointer;
+  color: var(--accent);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.stage05-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.8rem;
+  margin: 0.7rem 0;
+}
+
+.partner-contacts {
+  margin-top: 0.8rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--border);
+}
+
+.stage05-excluded-list .contact-row {
+  align-items: flex-start;
+}
+
+@media (max-width: 760px) {
+  .stage05-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}

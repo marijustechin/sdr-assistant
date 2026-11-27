@@ -41,6 +41,7 @@ Rules:
 | SDR-006 | Research Data Reconciliation | DONE | [SDR-006-research-data-reconciliation.md](SDR-006-research-data-reconciliation.md) |
 | SDR-006A | Final Research Result Persistence and Recovery | DONE | [SDR-006A-final-research-result-persistence.md](SDR-006A-final-research-result-persistence.md) |
 | SDR-007 | Research Results Presentation | DONE | [SDR-007-research-results-presentation.md](SDR-007-research-results-presentation.md) |
+| SDR-007A | Stage 05 Contact Discovery — Revised Scope | DONE / HUMAN_APPROVED | [SDR-007A-lead-qualification-contact-discovery.md](SDR-007A-lead-qualification-contact-discovery.md) |
 
 SDR-001, SDR-002 and SDR-003 are `DONE`. SDR-004 is registered; its implementation and all
 mandatory proof gates are complete, the read-only preflight and authorized database
@@ -385,5 +386,124 @@ and is `DONE` (the narrow exception is complete; the freeze remains active).
   `feat: present research results and market intelligence` and `main` was pushed to `origin`
   without force; the exact commit hash and `git ls-remote --exit-code origin refs/heads/main`
   proof are in the completion report. SDR-008 was not started.
+- SDR-007A was registered on 2026-11-26 as a design-only task. Its design content is complete and
+  accepted in principle by the architect. The design covers the autonomous Stage 05 qualification
+  flow, strict mandatory-gate decision table, target-country address/telephone rules, safe HTTPS
+  website validation with SSRF protection, bounded extended contact discovery,
+  programmatic-versus-LLM responsibilities, a single bounded semantic prompt, a versioned result
+  contract, a two-table Prisma persistence design with idempotency/leasing/publication,
+  API/frontend integration, resource limits for 2,000 companies, and a staged
+  validation/implementation sequence. Read-only PostgreSQL inspection of
+  `cmww8smxb0000z4swhooukamv` recorded only aggregates: 77 profiles, 173 offers, 7 priced offers,
+  5 priced companies, 51 companies with email, 50 with telephone, 22 with explicit target country,
+  55 missing country, 4 target-market offers and 68 companies with Stage-03/04 market
+  disagreement.
+- Separately authorized cleanup executed on 2026-11-26: 38 incomplete historical researches were
+  deleted (33 completed without profile arrays, 3 failed, 2 interrupted), with 3 stage-01,
+  1 stage-02 and 2 stage-03 dependent rows and no products, settings, email accounts or retained
+  stage rows. A protected `pg_dump -Fc` backup of 3,828,210 bytes, SHA-256
+  `191c235ea0d4b0b8c549bbbbe1ef26eca89aaa5b3d5ef748fe802802dd7acaf7`, was verified before deletion.
+  Final database state: 4 researches, 223 company profiles, 449 offers, stage rows 2/2/3,
+  products 5, settings 1, email accounts 2, no orphans, no active research or qualification runs.
+  The single cleanup proof passed its first 23 checks and then failed on a proof-harness SQL
+  parenthesis error; it was not rerun. One owner-authorized corrected proof then passed all 51
+  database, stage, schema, source-tree and 18-artifact assertions, but failed at the final
+  backup SHA-256 check because the harness resolved the absolute backup path against the
+  repository root. A final authorized correction fixed the absolute/relative path handling; the
+  complete proof then passed every assertion, including the backup SHA-256, 8 `TABLE DATA`
+  sections and full `pg_restore` read, with exit code 0. The historical cleanup operation is
+  successfully verified and its blocker is cleared. SDR-007A was `READY_FOR_HUMAN_REVIEW` before
+  the later Stage 05 backend attempt recorded below; it is not `DONE` and SDR-008 was not started.
+  Evidence:
+  [SDR-007A §19](SDR-007A-lead-qualification-contact-discovery.md#19-historical-incomplete-research-cleanup-2026-11-26).
+- Stage 05 backend implementation was attempted on 2026-11-26: an isolated API module, additive
+  Prisma models/migration, read-only/independent-execution endpoints and synthetic tests were added.
+  The first approved proof failed at the API build with two `TS1003` syntax errors in malformed
+  `$transaction` expressions. After correction, the second authorized proof built successfully but
+  failed its test phase: 40/66 tests passed and 26 failed, 0 skipped. The failures were traced to a
+  test-fixture shape mismatch and an IPv4-mapped IPv6 blocklist entry that misclassified public IPv4
+  addresses. After fixture and SSRF/contact-deduplication corrections, the third authorized proof
+  built successfully and ran 71 tests: 68 passed, 3 failed, 0 skipped. The remaining failures were
+  caused by a mixed IPv4/IPv6 `net.BlockList`; the lists were separated. The architect then reviewed
+  the source and required targeted geography, discovery, gate-precedence, semantic-input,
+  activity/relevance, operational-failure and duplicate-identity corrections. Those corrections
+  and focused regressions were implemented; the fourth authorized proof passed **87/87 tests**,
+  9/9 files, 0 skipped, exit code 0. The architect then required a final pre-pilot correctness pass
+  covering geographic association, contact ownership, discovery readiness, PostgreSQL execution
+  fencing, source fingerprint accounting, durable resource usage, HTTP bounds and focused
+  regressions. That final pass was implemented and verified: build PASS, **99/99 tests**, 10/10
+  files, 0 skipped, exit code 0. The subsequent real-PostgreSQL integration proof stopped before
+  migration deployment because its temporary-database identity assertion returned empty; the
+  harness query used NULL `inet_server_addr()` over a Unix socket. The container was cleaned up and
+  no live database changed. The authorized corrected proof then passed: all **11 migrations**
+  applied to an isolated PostgreSQL 17 container, build PASS, **99/99 synthetic tests**, and
+  **5/5 real-Prisma integration tests** covering ownership fencing, concurrent starts, durable
+  resume/usage, publication history and rollback. The temporary container was removed and the live
+  database identity remained unchanged; the live migration is not deployed. SDR-007A is
+  `READY_FOR_HUMAN_REVIEW`, not `DONE`. Evidence:
+  [SDR-007A §24](SDR-007A-lead-qualification-contact-discovery.md#24-real-postgresql-integration-verification-2026-11-26).
+  A second authorized isolated execution passed with the same counts and cleanup and is recorded in
+  [SDR-007A §25](SDR-007A-lead-qualification-contact-discovery.md#25-authorized-repeat-postgresql-verification-2026-11-26).
+- On 2026-11-26 the verified additive Stage 05 migration was deployed to the live local database
+  after a verified pre-migration backup: 11/11 migrations, both tables, FKs and partial indexes
+  present. Existing research/stage/product/settings/email data fingerprints remained identical, and
+  the live API smoke queries returned expected results without a restart. A read-only,
+  non-published three-company pilot harness exists for `dailylentes.eu`, `brolistimber.eu` and
+  `decormania.eu`. The owner approved and the pilot executed once with exit code 0: all three were
+  excluded (HTTP-only, parked site, target-country unconfirmed), using 1 LLM call (6,169 prompt /
+  77 completion tokens), 2 Exa queries and 8 tracked page operations. No qualification run/result
+  was persisted and the research fingerprints are unchanged. Pilot outcomes require human review.
+  Evidence:
+  [SDR-007A §27](SDR-007A-lead-qualification-contact-discovery.md#27-three-company-live-pilot-execution-2026-11-26).
+- On 2026-11-27 the SDR-007A scope was revised: Stage 05 is **Contact Discovery**, not Lead
+  Qualification. The existing qualification implementation remains preserved but is not the active
+  scope. The 05.1.2 homepage/contact-page experiment processed all 77 profiles, reused 75 saved
+  homepages, fetched 134/136 contact pages, and produced 189 unique company-email pairs, 126 newly
+  discovered emails, 68 companies with telephone coverage and 51 with address coverage. Named-
+  employee classification remains unclassified/uncertain because explicit name-position
+  associations were not preserved. No provider, database or Stage 01–04 changes were made. Evidence:
+  [SDR-007A §28](SDR-007A-lead-qualification-contact-discovery.md#28-revised-scope--stage-05-contact-discovery-0512).
+- The 05.1.3 Exa-assisted run processed the 50 zero/one-email companies within budget: 50 queries,
+  250 results, 83 page attempts and 7 raw new email candidates (6 after excluding a confirmed
+  `name@example.com` placeholder). The raw result reports 67 companies with email and 196 unique
+  pairs; the caveat and the distinction from the earlier 126 Stage-04-relative count are recorded in
+  [SDR-007A §29](SDR-007A-lead-qualification-contact-discovery.md#29-0513-exa-assisted-contact-discovery-2026-11-27).
+- The 05.1.4 offline consolidation produced the final contact inventory: 67 companies with email,
+  195 unique company-email pairs after removing two placeholder occurrences, 98 uncertain-ownership
+  contacts, 10 companies with foreign telephone codes and 7 with both local and foreign codes. No
+  network, provider, database or Stage 01–04 changes were made. Real contact data remains outside
+  the repository. Evidence:
+  [SDR-007A §30](SDR-007A-lead-qualification-contact-discovery.md#30-0514-contact-normalization-and-consolidation-2026-11-27).
+- The 05.1.5 offline final filter retained 55 companies, excluded 20 for missing usable company
+  email and 2 for foreign-telephone evidence, and produced 95 communication-ready company-email
+  pairs with 98 uncertain email pairs preserved separately. No HTTP/provider/database changes were
+  made. Evidence:
+  [SDR-007A §31](SDR-007A-lead-qualification-contact-discovery.md#31-0515-final-contact-filtering-2026-11-27).
+- Stage 05 Contact Discovery V1 is integrated behind an independently callable pipeline using the
+  existing run/result/lease infrastructure. Saved-evidence replay reproduces 64 retained, 128
+  communication-ready, 65 partner, 11 missing-email and 2 foreign-telephone results; revised Exa
+  targeting is covered separately. Build and **110/110 tests** pass without provider calls, database
+  writes or schema changes. Automatic launch/frontend integration remains out of scope. Evidence:
+  [SDR-007A §32](SDR-007A-lead-qualification-contact-discovery.md#32-stage-05-contact-discovery-v1-integration-2026-11-27).
+- The integrated V1 live execution completed against PostgreSQL on 2026-11-27: 77/77 source
+  companies, 68 retained, 133 retained-company usable pairs, 5 partner pairs, 8 missing-email and
+  1 foreign-telephone exclusion, 0 technical failures, 12 Exa queries and 266 total fetches. The
+  run is published and retrievable through the existing API; the original research is unchanged.
+  Live results differ from the saved-evidence reference because of current pages, actual link
+  selection and revised Exa eligibility. Evidence:
+  [SDR-007A §33](SDR-007A-lead-qualification-contact-discovery.md#33-integrated-contact-discovery-v1-live-execution-2026-11-27).
+- The research-detail Contacts tab now reads the published Stage 05 result. The existing research
+  shows `Contacts 68`, 68 retained, 133 usable emails and 9 excluded; searching `bro` returns Brolis
+  Timber with five usable emails, with partner contacts separated. `verify:web` (156/156 tests) and
+  the focused 10/10 e2e suite pass. Evidence:
+  [SDR-007A §34](SDR-007A-lead-qualification-contact-discovery.md#34-contacts-tab-using-published-stage-05-result-2026-11-27).
+- The human owner accepted SDR-007A on 2026-11-27. The accepted final behaviour is Contact
+  Discovery V1 with durable automatic Stage 05 launch after successful Stage 04 completion,
+  bounded retry and startup recovery, and the published Contacts result. Final published totals:
+  **71 retained, 6 excluded, 138 retained-usable, 5 partner, 4 missing-email, 2 foreign-phone**.
+  The final orchestration proof passed 30/30 focused API tests (2 optional artifact tests skipped),
+  `verify:web` 160/160, and 11/11 Playwright scenarios. SDR-007A is closed; SDR-008 was not
+  started. Evidence:
+  [SDR-007A §35](SDR-007A-lead-qualification-contact-discovery.md#35-final-human-acceptance-and-closure-2026-11-27).
 - Historical records in `ops/current.md`, `ops/backlog.md`, `TODO.md` and `HANDOVER.md` are
   not task authorization or authoritative status.

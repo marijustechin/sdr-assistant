@@ -50,6 +50,7 @@ model Research {
   stage01Result   ResearchStage01?
   stage02Result   ResearchStage02?
   stage03Result   ResearchStage03?
+  leadQualificationRuns LeadQualificationRun[]
 
   @@map("researches")
 }
@@ -165,4 +166,91 @@ model Setting {
   updatedAt DateTime @updatedAt
 
   @@map("settings")
+}
+
+enum LeadQualificationRunStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  INTERRUPTED
+  FAILED
+}
+
+enum LeadQualificationTrigger {
+  AUTO
+  MANUAL
+}
+
+enum LeadQualificationDecision {
+  ACCEPTED
+  EXCLUDED
+}
+
+/// One independently executable Stage 05 qualification run. It consumes a
+/// completed research result and never modifies the source research.
+model LeadQualificationRun {
+  id                        String                      @id @default(cuid())
+  researchId                String
+  research                  Research                    @relation(fields: [researchId], references: [id], onDelete: Cascade)
+  status                    LeadQualificationRunStatus  @default(QUEUED)
+  trigger                   LeadQualificationTrigger
+  targetCountry             String
+  qualificationVersion      String
+  policyVersion             String
+  promptVersion             String?
+  inputFingerprint          String
+  sourceResultSchemaVersion Int?
+  companyCount              Int                         @default(0)
+  processedCount            Int                         @default(0)
+  acceptedCount             Int                         @default(0)
+  excludedCount             Int                         @default(0)
+  technicalFailureCount     Int                         @default(0)
+  usage                     Json                        @default("{}")
+  executionToken            String?
+  executionLeaseUntil       DateTime?
+  lastHeartbeatAt           DateTime?
+  startedAt                 DateTime?
+  completedAt               DateTime?
+  publishedAt               DateTime?
+  supersededAt              DateTime?
+  error                     String?
+  startKey                  String?
+  createdAt                 DateTime                    @default(now())
+  updatedAt                 DateTime                    @updatedAt
+  results                   LeadQualificationResult[]
+
+  @@unique([researchId, startKey])
+  @@index([researchId, createdAt])
+  @@index([status, executionLeaseUntil])
+  @@map("lead_qualification_runs")
+}
+
+/// Durable per-company Stage 05 result. Checks, contacts and evidence are
+/// validated JSON payloads; decision and primary reason are scalar filters.
+model LeadQualificationResult {
+  id                     String                      @id @default(cuid())
+  runId                  String
+  run                    LeadQualificationRun        @relation(fields: [runId], references: [id], onDelete: Cascade)
+  sourceCompanyIndex     Int
+  sourceCompanyKey       String
+  domain                 String
+  companyName            String?
+  legalName              String?
+  country                String?
+  profileHash            String
+  decision               LeadQualificationDecision
+  primaryExclusionReason String?
+  exclusionReasons       String[]                    @default([])
+  technicalFailure       Boolean                     @default(false)
+  checks                 Json
+  contacts               Json
+  evidenceSources        Json
+  metadata               Json
+  createdAt              DateTime                    @default(now())
+  updatedAt              DateTime                    @updatedAt
+
+  @@unique([runId, sourceCompanyIndex])
+  @@index([runId, decision])
+  @@index([runId, primaryExclusionReason])
+  @@map("lead_qualification_results")
 }

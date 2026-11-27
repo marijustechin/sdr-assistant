@@ -1,7 +1,8 @@
 # Research implementation
 
-Status: description of the **current working tree** as inspected statically during SDR-002.
-The research implementation is currently **frozen** under
+Status: description of the **current working tree**. The original static description was
+prepared during SDR-002; SDR-006A, SDR-007 and SDR-007A changed the implemented behaviour
+recorded below. The research implementation remains **frozen** under
 [AGENTS.md](../../AGENTS.md) (Research Implementation Freeze). Read-only inspection and
 explicitly assigned documentation work are permitted; research code, prompts, schemas,
 stages and behavior must not be changed.
@@ -23,7 +24,7 @@ from source inspection unless marked as historical or inferred. No broad researc
 was performed for this correction; the stage integration check is limited to the current
 `research.service.ts` call path.
 
-## 1. One run, four stages
+## 1. One research run — four research stages plus Stage 05
 
 One run = one product + one market/language. The API receives `name`, `description`,
 `country` and `productId`; the country determines the single target language. `POST
@@ -106,6 +107,31 @@ DTO description; those values can differ. Stage 04 has no independent checkpoint
 entry: the resume path re-runs it from the stage-03 result. A stage-04 failure is therefore
 retried as part of a later resume, not from a saved stage-04 checkpoint. See
 [research.service.ts](../../apps/api/src/modules/research/research.service.ts#L318-L500).
+
+### Automatic Stage 05 contact discovery
+
+SDR-007A added automatic Stage 05 Contact Discovery V1 after successful Stage 04
+persistence. Stage 01–04 algorithms and their result contract are unchanged.
+
+- Both completion paths write `status: COMPLETED`, the Stage 04 result, and the transient
+  marker `stage: 05-contact-discovery-pending` in one token-guarded update.
+- The public research API masks that marker as `stage: null`; the `COMPLETED` status and
+  existing frontend behavior are preserved.
+- A separate automation service starts Stage 05 with the stable key
+  `stage05:contact-discovery-v1:<researchId>`, so repeated completion events do not create a
+  second run.
+- The marker is cleared only after `runtime.start` has returned a durably created run.
+  Start failures receive three bounded in-process attempts (250 ms and 1,000 ms backoff);
+  after that the marker remains for the next application startup.
+- Startup recovery scans COMPLETED researches with the pending marker and starts/resumes
+  their Stage 05 run. It also recovers AUTO Stage 05 runs in `QUEUED`, `INTERRUPTED`, or
+  `RUNNING` with an expired lease. Manual and historical researches are not selected and
+  are not backfilled.
+- Stage 05 failure never changes the Stage 04 status or result. The previous published
+  Stage 05 result remains until a new run has all source companies and publishes atomically.
+- The Contacts tab reads the latest/published Stage 05 run and displays queued, running,
+  failed, completed, no-result, loading, API-error, and empty states. Its tab count and
+  summary are derived from the published API result.
 
 ## 3. Stage 01 — product identification
 
@@ -371,13 +397,36 @@ stored only `{ completedThrough, companies }`. That description is historical: S
 corrected both paths. SDR-006A also prepared, but did not execute, a guarded one-row recovery
 for the single historical row whose profiles exist only in a temp artifact.
 
+### Stage 05 contact-discovery persistence
+
+SDR-007A adds two independent tables and does not alter the four research stage tables:
+
+- `LeadQualificationRun`: versioned run metadata, status, target country, counts, durable
+  usage, execution token/lease, publication/supersession timestamps and stable `startKey`;
+- `LeadQualificationResult`: one row per source company with profile identity, decision,
+  exclusion reasons, checks, usable contacts, evidence sources and the persisted
+  `contactDiscovery` metadata.
+
+Run creation is idempotent by `(researchId, startKey)`. Results are unique by
+`(runId, sourceCompanyIndex)`. Partial unique indexes permit at most one active run and one
+published run per research. A run is published only after every source company has a result;
+publication supersedes the previous published run without deleting its history. The
+Contacts UI reads the latest and published Stage 05 API routes.
+
+Stage 05 execution requires no LLM or Firecrawl. It uses bounded HTTP/contact-page discovery,
+conditional Exa fallback, and deterministic ownership/telephone filtering. Provider failures
+produce run/result diagnostics rather than modifying the Stage 04 result.
+
 ## 8. API exposure and status/result mismatch
 
 - `COMPLETED` from SDR-006A onward means the four stages returned **and** the final result was
   persisted. Historical `COMPLETED` rows may still lack `companies` (34 of 37 at the SDR-006
   inventory).
 - `INTERRUPTED` is written only by the stale-run sweep, not by a stage handler.
-- `stage` is a progress label; it is cleared on terminal success/failure.
+- `stage` is a progress label; it is cleared on terminal success/failure, except during the
+  short automatic Stage 05 launch window, when the raw value is the internal
+  `05-contact-discovery-pending` marker. The public research API maps that marker to `null`;
+  the research status remains `COMPLETED` throughout.
 - `result` is open JSON; the frontend intentionally does not type it and renders the raw
   value rather than a typed company-profile view.
 - The current result includes the stage-04 `summary` and a `schemaVersion`, but not stage-04

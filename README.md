@@ -2,13 +2,14 @@
 
 SDR Assistant researches one product in one target market: it identifies the product and
 its local category, collects candidate pages, assesses each page, and builds company
-profiles from the resulting offers. Runs are asynchronous: the web client starts a job and
-polls its status.
+profiles from the resulting offers. After a successful Stage 04 result, Stage 05 Contact
+Discovery V1 automatically discovers and publishes usable company contact data. Runs are
+asynchronous: the web client starts a job and polls its status.
 
 This is a documentation-first, ESM monorepo with a NestJS/Fastify API and a Next.js web
 app. The approved product requirements are in [PRODUCT.md](PRODUCT.md); the actual
-four-stage implementation and its known discrepancies are in
-[docs/system/research.md](docs/system/research.md).
+four-stage research implementation, automatic Stage 05 integration and known discrepancies
+are in [docs/system/research.md](docs/system/research.md).
 
 ## Stack
 
@@ -88,6 +89,11 @@ Or run one side: `npm run dev:api` / `npm run dev:web`.
 | `POST /research/:jobId/resume` | `202`; resumes a stopped stage-03/04 run |
 | `GET /research` | Research jobs |
 | `GET /research/:jobId` | Job status, stage, result and error |
+| `GET /research/:jobId/lead-qualification` | Latest Stage 05 run for a research |
+| `GET /research/:jobId/lead-qualification/published` | Current published Stage 05 run |
+| `GET /lead-qualification-runs/:runId` | One Stage 05 run and its status |
+| `POST /lead-qualification-runs/:runId/resume` | Recover an interrupted Stage 05 run |
+| `GET /lead-qualification-runs/:runId/results` | Cursor-paginated retained/excluded Stage 05 results |
 | `GET /settings` / `PATCH /settings` | Settings registry and validated updates |
 | `GET /email-accounts` / `GET /email-accounts/:id` | Configured email accounts (no credentials) |
 | `POST /email-accounts` / `PATCH /email-accounts/:id` | Create/update an email account, including enable/disable |
@@ -95,6 +101,18 @@ Or run one side: `npm run dev:api` / `npm run dev:web`.
 
 The web app reads `API_URL` (default `http://localhost:4000`). The API has no CORS;
 browser requests go through same-origin Next.js route handlers.
+
+### Contacts
+
+The research-detail Contacts tab reads the published Stage 05 Contact Discovery V1 result.
+It shows retained companies, all usable company emails, expandable telephones, addresses,
+registration identifiers and source links, with partner/distributor contacts kept separate.
+Excluded companies and their actual exclusion reasons are available in a separate view.
+Search and local pagination operate on the complete cursor-paginated API result.
+
+Stage 05 starts automatically after a successful Stage 04 result. Its progress and failure
+state are visible in Contacts. A Stage 05 failure never invalidates or replaces the Stage 04
+result, and previous published Stage 05 results remain until a new complete result publishes.
 
 ### Email accounts
 

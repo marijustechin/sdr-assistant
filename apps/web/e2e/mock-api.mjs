@@ -538,6 +538,7 @@ const RESULT_JOBS = {
       companies: SYNTHETIC_COMPANIES,
     },
   }),
+
   'job-malformed': job({
     id: 'job-malformed',
     productId: 'p-long',
@@ -601,6 +602,217 @@ const RESULT_JOBS = {
     result: null,
   }),
 };
+
+const STAGE05_RUN_ID = 'run-stage05-e2e';
+const STAGE05_RUN = {
+  id: STAGE05_RUN_ID,
+  researchId: 'job-profiles',
+  status: 'COMPLETED',
+  trigger: 'MANUAL',
+  targetCountry: 'Germany',
+  qualificationVersion: 'contact-discovery-v1',
+  policyVersion: 'contact-discovery-v1',
+  promptVersion: null,
+  inputFingerprint: 'stage05-e2e',
+  companyCount: 4,
+  processedCount: 4,
+  acceptedCount: 3,
+  excludedCount: 1,
+  technicalFailureCount: 0,
+  usage: {
+    llmCalls: 0,
+    promptTokens: 0,
+    completionTokens: 0,
+    fetches: 7,
+    searches: 1,
+    retries: 0,
+  },
+  startedAt: '2026-11-21T09:30:00.000Z',
+  completedAt: '2026-11-21T09:31:00.000Z',
+  publishedAt: '2026-11-21T09:31:00.000Z',
+  supersededAt: null,
+  error: null,
+};
+
+const STAGE05_RUNNING_JOB = job({
+  id: 'job-stage05-running',
+  productId: 'p-long',
+  country: 'Lithuania',
+  status: 'COMPLETED',
+  createdAt: '2026-11-21T09:00:00.000Z',
+  updatedAt: '2026-11-21T09:30:00.000Z',
+  result: {
+    schemaVersion: 1,
+    completedThrough: '04-company-profiling',
+    companies: SYNTHETIC_COMPANIES,
+  },
+});
+const STAGE05_RUNNING = {
+  ...STAGE05_RUN,
+  id: 'run-stage05-running',
+  researchId: 'job-stage05-running',
+  status: 'RUNNING',
+  acceptedCount: 0,
+  excludedCount: 0,
+  processedCount: 0,
+  technicalFailureCount: 0,
+  completedAt: null,
+  publishedAt: null,
+};
+
+function stage05Email(value, ownership = 'usable') {
+  return {
+    value,
+    ownership,
+    employeeName: null,
+    employeePosition: null,
+    employeeAssociation: 'unknown',
+    sources: [
+      {
+        origin: 'homepage',
+        method: 'mailto',
+        sourceUrl: `https://${value.split('@')[1]}/contact`,
+      },
+    ],
+  };
+}
+
+function stage05Contact(domain, name, emails, phones = [], addresses = []) {
+  return {
+    domain,
+    companyName: name,
+    emails,
+    phones,
+    addresses,
+    registrationIdentifiers: [{ value: `REG-${domain}`, kind: 'vatID' }],
+    retained: true,
+    exclusionReason: null,
+    targetCountry: 'Germany',
+    targetCountryCode: 'DE',
+  };
+}
+
+const STAGE05_RESULTS = [
+  {
+    id: 'stage05-result-alpha',
+    runId: STAGE05_RUN_ID,
+    decision: 'ACCEPTED',
+    primaryExclusionReason: null,
+    source: {
+      researchId: 'job-profiles',
+      sourceCompanyIndex: 0,
+      sourceCompanyKey: 'alpha-sauna.test',
+      domain: 'alpha-sauna.test',
+      profileHash: 'hash-alpha',
+      name: 'Alpha Sauna OÜ',
+      legalName: null,
+      country: 'Estonia',
+    },
+    metadata: {
+      contactDiscovery: stage05Contact(
+        'alpha-sauna.test',
+        'Alpha Sauna OÜ',
+        [
+          stage05Email('sales@alpha-sauna.test'),
+          stage05Email('info@alpha-sauna.test'),
+          stage05Email('partner@distributor.test', 'partner'),
+        ],
+        [
+          {
+            normalized: '+37260000001',
+            originalValues: ['+372 6000 0001'],
+            countries: ['EE'],
+            local: false,
+            reliableForeign: true,
+            ambiguous: false,
+            sourceUrls: ['https://alpha-sauna.test/contact'],
+          },
+        ],
+        [
+          {
+            value: 'Synthetic 1, Tallinn, Estonia',
+            structured: {
+              streetAddress: 'Synthetic 1',
+              addressLocality: 'Tallinn',
+              addressCountry: 'Estonia',
+            },
+            sourceUrls: ['https://alpha-sauna.test/contact'],
+          },
+        ],
+      ),
+    },
+  },
+  {
+    id: 'stage05-result-beta',
+    runId: STAGE05_RUN_ID,
+    decision: 'ACCEPTED',
+    primaryExclusionReason: null,
+    source: {
+      researchId: 'job-profiles',
+      sourceCompanyIndex: 1,
+      sourceCompanyKey: 'beta-wood.test',
+      domain: 'beta-wood.test',
+      profileHash: 'hash-beta',
+      name: null,
+      legalName: null,
+      country: 'Estonia',
+    },
+    metadata: {
+      contactDiscovery: stage05Contact('beta-wood.test', null, [
+        stage05Email('hello@beta-wood.test'),
+      ]),
+    },
+  },
+  {
+    id: 'stage05-result-gamma',
+    runId: STAGE05_RUN_ID,
+    decision: 'ACCEPTED',
+    primaryExclusionReason: null,
+    source: {
+      researchId: 'job-profiles',
+      sourceCompanyIndex: 2,
+      sourceCompanyKey: 'gamma-heat.test',
+      domain: 'gamma-heat.test',
+      profileHash: 'hash-gamma',
+      name: 'Gamma Heat GmbH',
+      legalName: null,
+      country: 'Germany',
+    },
+    metadata: {
+      contactDiscovery: stage05Contact('gamma-heat.test', 'Gamma Heat GmbH', [
+        stage05Email('team@gamma-heat.test'),
+      ]),
+    },
+  },
+  {
+    id: 'stage05-result-delta',
+    runId: STAGE05_RUN_ID,
+    decision: 'EXCLUDED',
+    primaryExclusionReason: 'EMAIL_NOT_FOUND',
+    source: {
+      researchId: 'job-profiles',
+      sourceCompanyIndex: 3,
+      sourceCompanyKey: 'delta.test',
+      domain: 'delta.test',
+      profileHash: 'hash-delta',
+      name: 'Delta Test',
+      legalName: null,
+      country: 'Germany',
+    },
+    metadata: {
+      contactDiscovery: {
+        domain: 'delta.test',
+        companyName: 'Delta Test',
+        emails: [],
+        phones: [],
+        addresses: [],
+        registrationIdentifiers: [],
+        retained: false,
+        exclusionReason: 'MISSING_USABLE_COMPANY_EMAIL',
+      },
+    },
+  },
+];
 
 const STATIC_JOBS = {
   'job-done': job({
@@ -1181,11 +1393,50 @@ const server = createServer(async (request, response) => {
     return send(response, 202, { jobId: id, status: 'RUNNING' });
   }
 
+  const stage05LatestMatch = /^\/research\/([^/]+)\/lead-qualification$/.exec(
+    path,
+  );
+
+  if (stage05LatestMatch !== null && method === 'GET') {
+    const id = decodeURIComponent(stage05LatestMatch[1]);
+    if (id === 'job-profiles') return send(response, 200, STAGE05_RUN);
+    if (id === 'job-stage05-running')
+      return send(response, 200, STAGE05_RUNNING);
+    return notFound(response, 'No Stage 05 result exists for this research.');
+  }
+
+  const stage05PublishedMatch =
+    /^\/research\/([^/]+)\/lead-qualification\/published$/.exec(path);
+
+  if (stage05PublishedMatch !== null && method === 'GET') {
+    const id = decodeURIComponent(stage05PublishedMatch[1]);
+    return id === 'job-profiles'
+      ? send(response, 200, STAGE05_RUN)
+      : notFound(response, 'No published Stage 05 result exists.');
+  }
+
+  const stage05ResultsMatch =
+    /^\/lead-qualification-runs\/([^/]+)\/results$/.exec(path);
+
+  if (stage05ResultsMatch !== null && method === 'GET') {
+    if (decodeURIComponent(stage05ResultsMatch[1]) !== STAGE05_RUN_ID) {
+      return notFound(response, 'Run not found.');
+    }
+    const decision = url.searchParams.get('decision') ?? 'ACCEPTED';
+    return send(response, 200, {
+      items: STAGE05_RESULTS.filter((item) => item.decision === decision),
+      nextCursor: null,
+    });
+  }
+
   const researchMatch = /^\/research\/([^/]+)$/.exec(path);
 
   if (researchMatch !== null && method === 'GET') {
     const id = decodeURIComponent(researchMatch[1]);
 
+    if (id === 'job-stage05-running') {
+      return send(response, 200, STAGE05_RUNNING_JOB);
+    }
     if (Object.hasOwn(STATIC_JOBS, id)) {
       return send(response, 200, STATIC_JOBS[id]);
     }

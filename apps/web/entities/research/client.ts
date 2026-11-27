@@ -32,3 +32,21 @@ export type {
   ResearchResultView,
 } from './model/result';
 export type { ResearchResponse, ResearchStatus } from './model/schema';
+
+export { fetchStage05Contacts } from './api/stage05.client';
+export {
+  contactDiscoverySchema,
+  stage05PayloadSchema,
+  stage05ResultSchema,
+  stage05RunSchema,
+} from './model/stage05';
+export type {
+  ContactDiscoveryView,
+  Stage05Address,
+  Stage05Email,
+  Stage05Payload,
+  Stage05Phone,
+  Stage05Registration,
+  Stage05Result,
+  Stage05Run,
+} from './model/stage05';

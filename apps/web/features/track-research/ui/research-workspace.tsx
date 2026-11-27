@@ -14,10 +14,11 @@ import { toast } from '@/shared/lib/toast';
 import type { ResearchSection } from '../model/sections';
 import { buildMarketSummary } from '../model/market-view';
 import { useResearchPolling } from '../model/use-research-polling';
+import { useStage05Contacts } from '../model/use-stage05-contacts';
 import { ResearchCompanies } from './research-companies';
 import { ResearchContacts } from './research-contacts';
 import { ResearchMarket } from './research-market';
-import { ResearchMetrics, companiesWithContacts } from './research-metrics';
+import { ResearchMetrics } from './research-metrics';
 import { ResearchOverview } from './research-overview';
 import { ResearchStatusBadge } from './research-status-badge';
 import { ResearchTabs } from './research-tabs';
@@ -75,6 +76,7 @@ export function ResearchWorkspace({
 }: ResearchWorkspaceProps) {
   const { research, isPolling, errorMessage, transientError, isStale, retry } =
     useResearchPolling(initialResearch);
+  const stage05 = useStage05Contacts(research.id);
   const result = useMemo(() => parseResearchResult(research), [research]);
   const marketSummary = useMemo(
     () =>
@@ -262,7 +264,10 @@ export function ResearchWorkspace({
               ? result.companies.length
               : null,
           market: marketSummary?.totalOffers ?? null,
-          contacts: companiesWithContacts(result),
+          contacts:
+            stage05.state.phase === 'completed'
+              ? stage05.state.retained.length
+              : null,
         }}
       />
 
@@ -286,7 +291,9 @@ export function ResearchWorkspace({
 
         {section === 'market' && <ResearchMarket result={result} />}
 
-        {section === 'contacts' && <ResearchContacts result={result} />}
+        {section === 'contacts' && (
+          <ResearchContacts state={stage05.state} onRetry={stage05.retry} />
+        )}
       </div>
     </>
   );

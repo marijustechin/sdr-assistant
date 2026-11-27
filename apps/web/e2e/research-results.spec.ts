@@ -102,6 +102,17 @@ test('searches, filters and sorts the research list locally', async ({
   await expect(rows.first()).toContainText('Thermo Abachi Cladding');
 });
 
+test('shows the automatic Stage 05 running state in Contacts', async ({
+  page,
+}) => {
+  await page.goto('/researches/job-stage05-running');
+  await page.getByRole('tab', { name: /Contacts/ }).click();
+  await expect(
+    page.getByText('Stage 05 Contact Discovery is running…'),
+  ).toBeVisible();
+  await expect(page.locator('.stage05-company')).toHaveCount(0);
+});
+
 test('presents the versioned company workspace, offers, prices and contacts', async ({
   page,
 }, testInfo) => {
@@ -206,35 +217,67 @@ test('presents the versioned company workspace, offers, prices and contacts', as
 
   await page.getByRole('tab', { name: /Contacts/ }).click();
   await expect(page.getByRole('heading', { name: 'Contacts' })).toBeVisible();
+  await expect(page.getByRole('tab', { name: /Contacts/ })).toContainText('3');
 
   const totals = page.locator('.contact-totals dd');
   await expect(totals.nth(0)).toHaveText('3');
-  await expect(totals.nth(1)).toHaveText('2');
-  await expect(totals.nth(2)).toHaveText('2');
-  await expect(totals.nth(3)).toHaveText('2');
-  await expect(page.locator('.contact-row')).toHaveCount(3);
+  await expect(totals.nth(1)).toHaveText('4');
+  await expect(totals.nth(2)).toHaveText('1');
+  await expect(page.locator('.stage05-company')).toHaveCount(3);
   await expect(page.locator('a[href^="mailto:"]')).toHaveCount(0);
+  await page.screenshot({
+    path: testInfo.outputPath('sdr-007-research-contacts-desktop.png'),
+    fullPage: true,
+  });
+  await expect(
+    page.getByText('Partner / distributor contacts').first(),
+  ).toBeHidden();
 
   await page.getByLabel('Search contacts').fill('gamma');
-  await expect(page.locator('.contact-row')).toHaveCount(1);
+  await expect(page.locator('.stage05-company')).toHaveCount(1);
   await page.getByLabel('Search contacts').fill('');
-  await page.getByLabel('Contact type').selectOption('email');
-  await expect(page.locator('.contact-row')).toHaveCount(2);
 
-  await expect(page.getByText('Communication')).toBeVisible();
+  const alphaContacts = page
+    .locator('.stage05-company')
+    .filter({ hasText: 'Alpha Sauna OÜ' });
+  await expect(alphaContacts.getByText('sales@alpha-sauna.test')).toBeVisible();
+  await expect(alphaContacts.getByText('info@alpha-sauna.test')).toBeVisible();
+  await alphaContacts.locator('summary').click();
+  await expect(
+    alphaContacts.getByText('Partner / distributor contacts'),
+  ).toBeVisible();
+  await expect(
+    alphaContacts.getByText('partner@distributor.test'),
+  ).toBeVisible();
+  await expect(alphaContacts.getByText('+372 6000 0001')).toBeVisible();
+  await expect(
+    alphaContacts.getByText('Synthetic 1, Tallinn, Estonia'),
+  ).toBeVisible();
+
+  await page.getByRole('button', { name: /Excluded companies/ }).click();
+  await expect(page.locator('.stage05-excluded-list .contact-row')).toHaveCount(
+    1,
+  );
+  await expect(page.getByText('No usable company email found')).toBeVisible();
+  await page.getByRole('button', { name: /Retained companies/ }).click();
+
+  await expect(page.locator('.research-tab.planned')).toContainText(
+    'Communication',
+  );
   await expect(page.getByRole('button', { name: /Communication/ })).toHaveCount(
     0,
   );
 
   await page.getByRole('button', { name: 'Dark' }).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
-  await expect(page.locator('.contact-row')).toHaveCount(2);
+  await expect(page.locator('.stage05-company')).toHaveCount(3);
 });
 
 test('presents the market table with prices, filters, evidence and safe links', async ({
   page,
 }, testInfo) => {
   await page.goto('/researches/job-profiles');
+  await expect(page.getByRole('tab', { name: /Contacts/ })).toContainText('3');
 
   const tabLabels = await page.getByRole('tab').allTextContents();
   expect(tabLabels).toEqual([
