@@ -1,8 +1,12 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
-import { fetchResearch } from '@/entities/research';
-import { ResearchWorkspace } from '@/features/track-research';
+import { fetchEmailAccounts } from '@/entities/email-account';
+import { fetchResearch, fetchResearchCommunication } from '@/entities/research';
+import {
+  ResearchWorkspace,
+  type ResearchCommunicationSettingsData,
+} from '@/features/track-research';
 import { fetchProduct } from '@/lib/products';
 import { shortenId } from '@/shared/lib/format';
 
@@ -38,6 +42,30 @@ export async function ResearchPage({ jobId }: ResearchPageProps) {
     ? productResult.product.name
     : shortenId(research.productId);
 
+  // Communication settings fail independently: an unavailable assignment or
+  // account list renders inside the Settings tab and leaves the rest intact.
+  const [communicationResult, emailAccountsResult] = await Promise.all([
+    fetchResearchCommunication(research.id),
+    fetchEmailAccounts(),
+  ]);
+  const communicationError = communicationResult.ok
+    ? emailAccountsResult.ok
+      ? null
+      : emailAccountsResult.message
+    : communicationResult.message;
+  const communication: ResearchCommunicationSettingsData =
+    communicationResult.ok && emailAccountsResult.ok
+      ? {
+          state: 'ready',
+          emailAccountId: communicationResult.data.emailAccountId,
+          accounts: emailAccountsResult.data,
+        }
+      : {
+          state: 'error',
+          message:
+            communicationError ?? 'The communication settings are unavailable.',
+        };
+
   return (
     <main>
       <p className="breadcrumb">
@@ -49,6 +77,7 @@ export async function ResearchPage({ jobId }: ResearchPageProps) {
         key={research.id}
         initialResearch={research}
         productName={productName}
+        communication={communication}
       />
     </main>
   );

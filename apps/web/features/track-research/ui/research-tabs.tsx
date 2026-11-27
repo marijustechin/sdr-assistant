@@ -13,8 +13,9 @@ type ResearchTabsProps = {
 /**
  * Section navigation for one research.
  *
- * Communication is reserved as a non-interactive label: the task explicitly
- * forbids non-functional action controls and communication functionality.
+ * Communication remains the reserved, non-interactive planned label: SDR-008
+ * adds the implemented Settings tab and does not add communication actions or
+ * placeholder controls.
  */
 export function ResearchTabs({ active, onChange, counts }: ResearchTabsProps) {
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>): void {

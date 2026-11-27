@@ -1,0 +1,48 @@
+import type { EmailAccount } from '@/entities/email-account/client';
+
+/**
+ * Research communication data loaded by the research page.
+ *
+ * Both the assignment and the account list must load for the Settings tab to
+ * work; a failure is rendered inside the tab without affecting the research
+ * overview, companies, market or contacts.
+ */
+export type ResearchCommunicationSettingsData =
+  | {
+      readonly state: 'ready';
+      readonly emailAccountId: string | null;
+      readonly accounts: readonly EmailAccount[];
+    }
+  | { readonly state: 'error'; readonly message: string };
+
+export type AssignedEmailAccount =
+  | { readonly state: 'assigned'; readonly account: EmailAccount }
+  | { readonly state: 'missing'; readonly emailAccountId: string }
+  | { readonly state: 'none' };
+
+/**
+ * Resolves the saved assignment against the complete account list, including
+ * disabled accounts. A missing account is a distinct state: the assignment was
+ * kept and must not be silently replaced.
+ */
+export function resolveAssignedEmailAccount(
+  accounts: readonly EmailAccount[],
+  emailAccountId: string | null,
+): AssignedEmailAccount {
+  if (emailAccountId === null) {
+    return { state: 'none' };
+  }
+
+  const account = accounts.find((candidate) => candidate.id === emailAccountId);
+
+  return account === undefined
+    ? { state: 'missing', emailAccountId }
+    : { state: 'assigned', account };
+}
+
+/** Accounts offered in the assignment select: enabled only, source order kept. */
+export function assignableEmailAccounts(
+  accounts: readonly EmailAccount[],
+): EmailAccount[] {
+  return accounts.filter((account) => account.enabled);
+}

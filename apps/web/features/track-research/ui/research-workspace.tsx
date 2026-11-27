@@ -12,6 +12,7 @@ import { formatDateTime, shortenId } from '@/shared/lib/format';
 import { toast } from '@/shared/lib/toast';
 
 import type { ResearchSection } from '../model/sections';
+import type { ResearchCommunicationSettingsData } from '../model/research-settings';
 import { buildMarketSummary } from '../model/market-view';
 import { useResearchPolling } from '../model/use-research-polling';
 import { useStage05Contacts } from '../model/use-stage05-contacts';
@@ -20,12 +21,14 @@ import { ResearchContacts } from './research-contacts';
 import { ResearchMarket } from './research-market';
 import { ResearchMetrics } from './research-metrics';
 import { ResearchOverview } from './research-overview';
+import { ResearchSettings } from './research-settings';
 import { ResearchStatusBadge } from './research-status-badge';
 import { ResearchTabs } from './research-tabs';
 
 type ResearchWorkspaceProps = {
   initialResearch: ResearchResponse;
   productName: string;
+  communication: ResearchCommunicationSettingsData;
 };
 
 const SPINNER_CLASSES =
@@ -73,9 +76,13 @@ function statusMessage(
 export function ResearchWorkspace({
   initialResearch,
   productName,
+  communication: initialCommunication,
 }: ResearchWorkspaceProps) {
   const { research, isPolling, errorMessage, transientError, isStale, retry } =
     useResearchPolling(initialResearch);
+  // The assignment lives above the tab content so switching sections does not
+  // remount it from a stale server value; a page reload reads PostgreSQL again.
+  const [communication, setCommunication] = useState(initialCommunication);
   const stage05 = useStage05Contacts(research.id);
   const result = useMemo(() => parseResearchResult(research), [research]);
   const marketSummary = useMemo(
@@ -115,6 +122,12 @@ export function ResearchWorkspace({
 
   function selectSection(next: ResearchSection): void {
     setSelectedSection(next);
+  }
+
+  function handleEmailAccountChange(emailAccountId: string | null): void {
+    setCommunication((current) =>
+      current.state === 'ready' ? { ...current, emailAccountId } : current,
+    );
   }
 
   async function copyResult(): Promise<void> {
@@ -293,6 +306,14 @@ export function ResearchWorkspace({
 
         {section === 'contacts' && (
           <ResearchContacts state={stage05.state} onRetry={stage05.retry} />
+        )}
+
+        {section === 'settings' && (
+          <ResearchSettings
+            researchId={research.id}
+            communication={communication}
+            onEmailAccountChange={handleEmailAccountChange}
+          />
         )}
       </div>
     </>

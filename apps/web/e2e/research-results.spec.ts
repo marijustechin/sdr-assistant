@@ -285,6 +285,7 @@ test('presents the market table with prices, filters, evidence and safe links', 
     'Companies 6',
     'Market 5',
     'Contacts 3',
+    'Settings',
   ]);
 
   await page.getByRole('tab', { name: /Market/ }).click();

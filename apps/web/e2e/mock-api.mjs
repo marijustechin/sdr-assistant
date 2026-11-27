@@ -882,6 +882,16 @@ function settingsPayload() {
 const emailAccounts = new Map();
 let emailAccountSequence = 0;
 
+/**
+ * Research-to-email-account assignments for the SDR-008 scenarios.
+ *
+ * The real API stores these in `research_communication_settings`; the mock keeps
+ * the same shape in memory. An id that is not in `emailAccounts` simulates a
+ * stale assignment left by an external deletion, which the real foreign key
+ * prevents but which the UI must still render safely.
+ */
+const researchCommunication = new Map();
+
 const EMAIL_ACCOUNT_FIELDS = [
   'name',
   'senderName',
@@ -1054,6 +1064,7 @@ function reset() {
   createdProducts.clear();
   emailAccounts.clear();
   emailAccountSequence = 0;
+  researchCommunication.clear();
   SETTINGS['research.pageCollection.resultsPerQuery'] = 20;
 }
 
@@ -1359,6 +1370,58 @@ const server = createServer(async (request, response) => {
       createdProducts.set(updated.id, updated);
       return send(response, 200, updated);
     }
+  }
+
+  const communicationMatch = /^\/research\/([^/]+)\/communication$/.exec(path);
+
+  if (communicationMatch !== null && method === 'GET') {
+    const id = decodeURIComponent(communicationMatch[1]);
+
+    return send(response, 200, {
+      emailAccountId: researchCommunication.get(id) ?? null,
+    });
+  }
+
+  const communicationEmailAccountMatch =
+    /^\/research\/([^/]+)\/communication\/email-account$/.exec(path);
+
+  if (communicationEmailAccountMatch !== null && method === 'PATCH') {
+    const id = decodeURIComponent(communicationEmailAccountMatch[1]);
+    const body = await readBody(request);
+
+    if (!Object.hasOwn(body, 'emailAccountId')) {
+      return send(response, 400, {
+        statusCode: 400,
+        message: ['emailAccountId must be a string or null'],
+        error: 'Bad Request',
+      });
+    }
+
+    const emailAccountId = body.emailAccountId;
+
+    if (emailAccountId !== null) {
+      if (typeof emailAccountId !== 'string' || emailAccountId === '') {
+        return send(response, 400, {
+          statusCode: 400,
+          message: ['emailAccountId must be a string or null'],
+          error: 'Bad Request',
+        });
+      }
+
+      const found = emailAccounts.get(emailAccountId);
+
+      if (found !== undefined && !found.enabled) {
+        return send(response, 409, {
+          statusCode: 409,
+          message: 'Only enabled email accounts can be assigned',
+          error: 'Conflict',
+        });
+      }
+    }
+
+    researchCommunication.set(id, emailAccountId);
+
+    return send(response, 200, { emailAccountId });
   }
 
   if (method === 'GET' && path === '/research') {

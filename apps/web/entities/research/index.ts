@@ -1,4 +1,11 @@
-export { fetchResearch, fetchResearches } from './api/research.server';
+export {
+  fetchResearch,
+  fetchResearchCommunication,
+  fetchResearches,
+  updateResearchEmailAccount,
+} from './api/research.server';
+export { researchEmailAccountAssignmentSchema } from './model/communication';
+export type { ResearchEmailAccountAssignment } from './model/communication';
 export {
   PROFILING_SUMMARY_KEYS,
   RESULT_AVAILABILITY_LABELS,

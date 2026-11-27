@@ -51,6 +51,7 @@ model Research {
   stage02Result   ResearchStage02?
   stage03Result   ResearchStage03?
   leadQualificationRuns LeadQualificationRun[]
+  communicationSettings ResearchCommunicationSettings?
 
   @@map("researches")
 }
@@ -153,7 +154,27 @@ model EmailAccount {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  researchCommunicationSettings ResearchCommunicationSettings[]
+
   @@map("email_accounts")
+}
+
+/// Research-specific communication configuration. Email-account selection is
+/// independent of research execution and stores no credentials: the credentials
+/// remain encrypted in `email_accounts`. A research without a saved row has no
+/// explicit configuration; future communication settings belong to this model.
+/// The account relation is restricted on delete so a still-assigned account is
+/// never silently unassigned; disabling an account keeps the assignment intact.
+model ResearchCommunicationSettings {
+  researchId    String       @id
+  research      Research     @relation(fields: [researchId], references: [id], onDelete: Cascade)
+  emailAccountId String?
+  emailAccount  EmailAccount? @relation(fields: [emailAccountId], references: [id], onDelete: Restrict)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@index([emailAccountId])
+  @@map("research_communication_settings")
 }
 
 /// One stored value per registered setting key. The code registry owns the

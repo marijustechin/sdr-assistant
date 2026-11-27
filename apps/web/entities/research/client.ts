@@ -6,6 +6,8 @@
  * `API_URL` into the client bundle.
  */
 export { fetchResearchStatus, resumeResearch } from './api/research.client';
+export { researchEmailAccountAssignmentSchema } from './model/communication';
+export type { ResearchEmailAccountAssignment } from './model/communication';
 export {
   PROFILING_SUMMARY_KEYS,
   RESULT_AVAILABILITY_LABELS,

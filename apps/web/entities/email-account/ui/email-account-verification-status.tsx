@@ -1,10 +1,11 @@
+import { formatDateTime } from '@/shared/lib/format';
+
 import {
   describeVerificationFailure,
   verificationStatusLabel,
   type EmailConnectionProtocol,
   type EmailVerificationStatus,
-} from '@/entities/email-account/client';
-import { formatDateTime } from '@/shared/lib/format';
+} from '../model/schema';
 
 type EmailAccountVerificationStatusProps = {
   readonly protocol: EmailConnectionProtocol;
@@ -28,6 +29,9 @@ function toneClass(status: EmailVerificationStatus): string {
  * Historical verification state of one protocol. "Verified" is deliberately
  * used instead of "Connected": the result belongs to the saved configuration
  * that was tested, not to a live connection.
+ *
+ * Lives in the email-account entity because account assignment screens in more
+ * than one feature present the same persisted result.
  */
 export function EmailAccountVerificationStatus({
   protocol,

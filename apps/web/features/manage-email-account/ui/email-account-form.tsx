@@ -11,6 +11,7 @@ import {
 } from 'react';
 
 import {
+  EmailAccountVerificationStatus,
   readEmailAccountForm,
   type EmailAccount,
   type EmailConnectionProtocol,
@@ -24,7 +25,6 @@ import {
   type EmailAccountFormState,
 } from '../api/action';
 import { notifyConnectionTestSummary } from '../model/connection-test-feedback';
-import { EmailAccountVerificationStatus } from './email-account-verification-status';
 
 const initialState: EmailAccountFormState = { status: 'idle' };
 

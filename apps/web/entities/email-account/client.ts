@@ -15,6 +15,7 @@ export {
   readEmailAccountForm,
   verificationStatusLabel,
 } from './model/schema';
+export { EmailAccountVerificationStatus } from './ui/email-account-verification-status';
 export type {
   ConnectionVerificationResult,
   EmailAccount,

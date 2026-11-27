@@ -42,6 +42,7 @@ Rules:
 | SDR-006A | Final Research Result Persistence and Recovery | DONE | [SDR-006A-final-research-result-persistence.md](SDR-006A-final-research-result-persistence.md) |
 | SDR-007 | Research Results Presentation | DONE | [SDR-007-research-results-presentation.md](SDR-007-research-results-presentation.md) |
 | SDR-007A | Stage 05 Contact Discovery — Revised Scope | DONE / HUMAN_APPROVED | [SDR-007A-lead-qualification-contact-discovery.md](SDR-007A-lead-qualification-contact-discovery.md) |
+| SDR-008 | Research Email Account Assignment | DONE / HUMAN_APPROVED | [SDR-008-research-email-account-assignment.md](SDR-008-research-email-account-assignment.md) |
 
 SDR-001, SDR-002 and SDR-003 are `DONE`. SDR-004 is registered; its implementation and all
 mandatory proof gates are complete, the read-only preflight and authorized database
@@ -507,3 +508,47 @@ and is `DONE` (the narrow exception is complete; the freeze remains active).
   [SDR-007A §35](SDR-007A-lead-qualification-contact-discovery.md#35-final-human-acceptance-and-closure-2026-11-27).
 - Historical records in `ops/current.md`, `ops/backlog.md`, `TODO.md` and `HANDOVER.md` are
   not task authorization or authoritative status.
+- SDR-008 was registered and implemented on 2026-11-27. It adds a fifth **Settings** tab to the
+  research detail page with only the **Email account** section: the current assignment (name,
+  address, enabled state and stored SMTP/IMAP verification), assignment from enabled accounts,
+  change and removal, and explicit disabled/missing/error states. Persistence is one additive
+  `research_communication_settings` table/migration (one row per research, optional account
+  relation, no credential column); the migration is authored and validated; at implementation
+  time it was **not deployed** (the later owner-authorized deployment is recorded below). A new
+  `research-communication` API module returns only
+  `{ emailAccountId }`; `apps/api/src/modules/research` and Stage 01–05 were not changed. The
+  existing `Communication — Planned` marker is preserved; no communication functionality,
+  placeholder controls, email sending, mailbox checks or SMTP/IMAP connections were added. The
+  single canonical proof passed with exit code 0: API build, **14/14** focused backend tests,
+  `verify:web` **174/174** unit tests plus typecheck/lint/format, and `e2e:web` **45/45**
+  scenarios (39 preserved + 6 new). All 30 pre-existing untracked artifacts remain byte-identical;
+  no commit or push was performed. SDR-008 is `READY_FOR_HUMAN_REVIEW`; live migration deployment
+  and live-database acceptance remain for the owner. Evidence:
+  [SDR-008 §9–§11](SDR-008-research-email-account-assignment.md#9-verification-result).
+- On 2026-11-27 the owner authorized the live deployment and acceptance preparation for SDR-008.
+  Executed: a protected pre-migration backup at
+  `C:\Users\msmig\Projektai\_backupsForProjects\sdr-assistant-db-20261127-204309`
+  (2,550,159 bytes, matching container/host SHA-256 `8a9e5a50…175b79`, 10 `TABLE DATA` entries,
+  protected ACL); the single pending migration `20261127170000_add_research_communication_settings`
+  applied (`migrate deploy` exit 0; ledger 12/0/0; checksum matches the repository file); the
+  `research_communication_settings` table, indexes and foreign keys verified. All nine full-row
+  fingerprints and all counts for researches, stage results, products, settings, email accounts and
+  Stage 05 runs/results were identical before and after; the published Stage 05 run and both email
+  accounts are intact. The dev stack was restarted (API `127.0.0.1:4000` PID 50528, web
+  `127.0.0.1:3000` PID 50404); health, the research page, the Settings tab payload and the live
+  communication endpoint (`{"emailAccountId":null}`) were verified, and no account was assigned by
+  the agent. SDR-008 remains `READY_FOR_HUMAN_REVIEW`; the owner's assignment and reload acceptance
+  are pending. No code, test, dependency, research, provider, SMTP/IMAP, email or commit state
+  changed. Evidence:
+  [SDR-008 §13](SDR-008-research-email-account-assignment.md#13-live-deployment-and-acceptance-preparation--2026-11-27).
+- On 2026-11-27 the human owner accepted SDR-008 as `DONE / HUMAN_APPROVED`. The owner assigned
+  the real email account in the research Settings tab and confirmed that the assignment persists
+  after closing and reopening the research; the read-only post-acceptance state is exactly one
+  assignment row referencing an enabled account. The additive migration, protected pre-migration
+  backup, deployment evidence and the single canonical proof are preserved in
+  [SDR-008 §9–§14](SDR-008-research-email-account-assignment.md#9-verification-result). The
+  SDR-008 scope was committed with `feat: add research email account assignment` and pushed to
+  `origin main` without force; credentials, private data, `.env`, generated/build/test/log
+  artifacts and the 30 pre-existing untracked artifacts were excluded. The exact commit hash,
+  staged-manifest review, remote verification and final working-tree status are recorded in the
+  completion report. SDR-009 was not started.
