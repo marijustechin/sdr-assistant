@@ -75,6 +75,12 @@ function storedAccount(
     imapVerificationStatus: 'NOT_TESTED',
     imapLastCheckedAt: null,
     imapVerificationFailureCode: null,
+    signatureName: null,
+    signatureCompany: null,
+    signaturePhone: null,
+    signatureWebsite: null,
+    signatureWhatsapp: null,
+    signatureText: null,
     createdAt: new Date('2026-11-25T10:00:00.000Z'),
     updatedAt: new Date('2026-11-25T10:00:00.000Z'),
     ...overrides,
@@ -316,6 +322,7 @@ describe('email-account response mapping', () => {
         'imapVerificationStatus',
         'imapLastCheckedAt',
         'imapVerificationFailureCode',
+        'signature',
         'createdAt',
         'updatedAt',
       ].sort(),
@@ -633,5 +640,167 @@ describe('email-account service', () => {
       service.update('missing', plainToInstance(UpdateEmailAccountDto, {})),
     ).rejects.toThrow(/not found/);
     await expect(service.findOne('missing')).rejects.toThrow(/not found/);
+  });
+});
+
+describe('email-account signature', () => {
+  it('maps every configured signature field, including both links', () => {
+    const response = toEmailAccountResponse(
+      storedAccount({
+        signatureName: 'Sales Team',
+        signatureCompany: 'Synthetic Trading',
+        signaturePhone: '+370 6000 0000',
+        signatureWebsite: 'https://example.test',
+        signatureWhatsapp: 'https://wa.me/37060000000',
+        signatureText: 'Monday to Friday',
+      }),
+    );
+
+    expect(response.signature).toEqual({
+      name: 'Sales Team',
+      companyName: 'Synthetic Trading',
+      phone: '+370 6000 0000',
+      website: 'https://example.test',
+      whatsapp: 'https://wa.me/37060000000',
+      text: 'Monday to Friday',
+    });
+    expect(JSON.stringify(response)).not.toContain('PasswordEncrypted');
+  });
+
+  it('returns an all-null signature when nothing is configured', () => {
+    expect(toEmailAccountResponse(storedAccount()).signature).toEqual({
+      name: null,
+      companyName: null,
+      phone: null,
+      website: null,
+      whatsapp: null,
+      text: null,
+    });
+  });
+
+  it('stores a signature on creation and normalises blank values', async () => {
+    const store = createPrismaStore();
+    const service = new EmailAccountsService(store.prisma);
+    const dto = plainToInstance(CreateEmailAccountDto, {
+      ...CREATE_PAYLOAD,
+      signatureName: ' Sales Team ',
+      signatureCompany: '',
+      signatureWebsite: 'https://example.test',
+    });
+
+    const created = await service.create(dto);
+    const stored = store.rows.get(created.id);
+
+    expect(created.signature).toEqual({
+      name: 'Sales Team',
+      companyName: null,
+      phone: null,
+      website: 'https://example.test',
+      whatsapp: null,
+      text: null,
+    });
+    expect(stored?.signatureName).toBe('Sales Team');
+    expect(stored?.signatureCompany).toBeNull();
+    expect(store.createArgs[0]?.signatureWebsite).toBe('https://example.test');
+  });
+
+  it('updates only the supplied signature fields and clears with null', async () => {
+    const row = storedAccount({
+      signatureName: 'Old name',
+      signatureText: 'Keep this text',
+    });
+    const store = createPrismaStore([row]);
+    const service = new EmailAccountsService(store.prisma);
+
+    const updated = await service.update(
+      row.id,
+      plainToInstance(UpdateEmailAccountDto, {
+        signatureName: null,
+        signaturePhone: '+370 6000 0000',
+      }),
+    );
+
+    expect(updated.signature.name).toBeNull();
+    expect(updated.signature.phone).toBe('+370 6000 0000');
+    expect(updated.signature.text).toBe('Keep this text');
+    expect(store.updateArgs.at(-1)?.data).toEqual({
+      signatureName: null,
+      signaturePhone: '+370 6000 0000',
+    });
+  });
+
+  it('never invalidates a protocol verification when only the signature changes', async () => {
+    const row = storedAccount({
+      smtpVerificationStatus: 'VERIFIED',
+      smtpLastCheckedAt: new Date('2026-11-26T09:00:00.000Z'),
+      imapVerificationStatus: 'VERIFIED',
+      imapLastCheckedAt: new Date('2026-11-26T09:01:00.000Z'),
+    });
+    const store = createPrismaStore([row]);
+    const service = new EmailAccountsService(store.prisma);
+
+    const updated = await service.update(
+      row.id,
+      plainToInstance(UpdateEmailAccountDto, {
+        signatureText: 'New signature text',
+      }),
+    );
+    const written = store.updateArgs.at(-1)?.data ?? {};
+
+    expect(updated.smtpVerificationStatus).toBe('VERIFIED');
+    expect(updated.imapVerificationStatus).toBe('VERIFIED');
+    expect(written).not.toHaveProperty('smtpVerificationStatus');
+    expect(written).not.toHaveProperty('imapVerificationStatus');
+  });
+});
+
+describe('email-account signature DTO validation', () => {
+  it('trims signature text and turns blank values into null', () => {
+    const dto = plainToInstance(UpdateEmailAccountDto, {
+      signatureName: '  Sales Team  ',
+      signatureCompany: '   ',
+      signatureWebsite: '',
+      signatureWhatsapp: '  https://wa.me/37060000000  ',
+      signatureText: '  Monday to Friday  ',
+    });
+
+    expect(dto.signatureName).toBe('Sales Team');
+    expect(dto.signatureCompany).toBeNull();
+    expect(dto.signatureWebsite).toBeNull();
+    expect(dto.signatureWhatsapp).toBe('https://wa.me/37060000000');
+    expect(dto.signatureText).toBe('Monday to Friday');
+  });
+
+  it('accepts optional signature fields on creation', async () => {
+    const errors = await validateDto(CreateEmailAccountDto, {
+      ...CREATE_PAYLOAD,
+      signatureName: 'Sales Team',
+      signatureWebsite: 'https://example.test',
+      signatureWhatsapp: 'https://wa.me/37060000000',
+      signatureCompany: null,
+    });
+
+    expect(errors).toEqual([]);
+  });
+
+  it('rejects non-HTTP signature links and over-long values', async () => {
+    const errors = await validateDto(UpdateEmailAccountDto, {
+      signatureWebsite: 'javascript:alert(1)',
+      signatureWhatsapp: 'wa.me/37060000000',
+      signatureName: 'x'.repeat(201),
+      signatureText: 'x'.repeat(2001),
+    });
+
+    expect(propertyErrors(errors)).toEqual(
+      expect.arrayContaining([
+        'signatureWebsite',
+        'signatureWhatsapp',
+        'signatureName',
+        'signatureText',
+      ]),
+    );
+    expect(constraintMessages(errors).join(' ')).toContain(
+      'signatureWebsite must be an http:// or https:// link',
+    );
   });
 });

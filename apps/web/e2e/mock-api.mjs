@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { createServer } from 'node:http';
 
 /**
@@ -994,6 +995,56 @@ const researchCommunication = new Map();
 /** Owner-authored initial emails for the SDR-009 scenarios. */
 const researchInitialEmail = new Map();
 
+/**
+ * Research-owned initial-email attachments for the SDR-010 scenarios.
+ *
+ * Only metadata is stored: the synthetic bytes never leave this process and no
+ * endpoint returns them, exactly like the real API. The limits mirror the API
+ * defaults so the rendered hints and server-side validation agree.
+ */
+const researchAttachments = new Map();
+let attachmentSequence = 0;
+
+const ATTACHMENT_LIMITS = {
+  maxFileBytes: 10 * 1024 * 1024,
+  maxAttachments: 5,
+  maxTotalBytes: 25 * 1024 * 1024,
+};
+
+const EMPTY_SIGNATURE = {
+  name: null,
+  companyName: null,
+  phone: null,
+  website: null,
+  whatsapp: null,
+  text: null,
+};
+
+/** Flat wire field -> signature member. */
+const SIGNATURE_FIELDS = {
+  signatureName: 'name',
+  signatureCompany: 'companyName',
+  signaturePhone: 'phone',
+  signatureWebsite: 'website',
+  signatureWhatsapp: 'whatsapp',
+  signatureText: 'text',
+};
+
+function signatureField(value) {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed === '' ? null : trimmed;
+}
+
+function signatureFromBody(body) {
+  return Object.fromEntries(
+    Object.entries(SIGNATURE_FIELDS).map(([field, member]) => [
+      member,
+      signatureField(body[field]),
+    ]),
+  );
+}
+
 const EMAIL_ACCOUNT_FIELDS = [
   'name',
   'senderName',
@@ -1032,6 +1083,7 @@ function emailAccount(overrides) {
     imapVerificationStatus: 'NOT_TESTED',
     imapLastCheckedAt: null,
     imapVerificationFailureCode: null,
+    signature: { ...EMPTY_SIGNATURE },
     createdAt: CREATED_AT,
     updatedAt: CREATED_AT,
     ...overrides,
@@ -1048,6 +1100,7 @@ function createEmailAccount(body) {
         (field) => [field, body[field]],
       ),
     ),
+    signature: signatureFromBody(body),
     smtpPasswordConfigured:
       typeof body.smtpPassword === 'string' && body.smtpPassword !== '',
     imapPasswordConfigured:
@@ -1077,6 +1130,17 @@ function updateEmailAccount(existing, body) {
   for (const field of EMAIL_ACCOUNT_FIELDS) {
     if (Object.hasOwn(body, field)) {
       updated[field] = body[field];
+    }
+  }
+
+  // A signature field present in the body replaces that member; an absent one
+  // keeps the stored value. A blank value clears it to null, like the API.
+  for (const [field, member] of Object.entries(SIGNATURE_FIELDS)) {
+    if (Object.hasOwn(body, field)) {
+      updated.signature = {
+        ...updated.signature,
+        [member]: signatureField(body[field]),
+      };
     }
   }
 
@@ -1127,6 +1191,7 @@ function connectionSettingsChanged(existing, body, prefix) {
 const CONNECTION_TEST_DELAY_MS = Number(
   process.env.MOCK_CONNECTION_TEST_DELAY_MS ?? 600,
 );
+const TEST_EMAIL_DELAY_MS = Number(process.env.MOCK_TEST_EMAIL_DELAY_MS ?? 500);
 const ALLOWED_TEST_PORTS = { SMTP: [465, 587], IMAP: [993, 143] };
 
 /** Deterministic verification outcome used by the rendered scenarios. */
@@ -1158,6 +1223,111 @@ function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function readRawBody(request) {
+  return new Promise((resolve) => {
+    const chunks = [];
+
+    request.on('data', (chunk) => {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    });
+    request.on('end', () => resolve(Buffer.concat(chunks)));
+  });
+}
+
+function decodeHeader(value) {
+  if (typeof value !== 'string') return '';
+
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
+function attachmentsPayload(researchId) {
+  return {
+    limits: { ...ATTACHMENT_LIMITS },
+    items: researchAttachments.get(researchId) ?? [],
+  };
+}
+
+/**
+ * Mirrors the API's attachment validation for the rendered scenarios. The
+ * stored row carries metadata only; the synthetic bytes are discarded here
+ * exactly as the real API never returns them.
+ */
+function createAttachment(researchId, { filename, mimeType, content }) {
+  const trimmed = filename.trim();
+
+  if (trimmed === '') {
+    return { status: 400, error: 'An attachment file name is required.' };
+  }
+
+  if (trimmed.length > 200) {
+    return {
+      status: 400,
+      error: 'An attachment file name must be at most 200 characters.',
+    };
+  }
+
+  if (
+    trimmed === '.' ||
+    trimmed === '..' ||
+    trimmed.includes('/') ||
+    trimmed.includes('\\') ||
+    /[\u0000-\u001f\u007f]/.test(trimmed)
+  ) {
+    return { status: 400, error: 'The attachment file name is invalid.' };
+  }
+
+  if (content.length === 0) {
+    return { status: 400, error: 'The attachment is empty.' };
+  }
+
+  if (content.length > ATTACHMENT_LIMITS.maxFileBytes) {
+    return { status: 413, error: 'An attachment must be at most 10.0 MB.' };
+  }
+
+  const current = researchAttachments.get(researchId) ?? [];
+
+  if (current.length >= ATTACHMENT_LIMITS.maxAttachments) {
+    return {
+      status: 400,
+      error: 'A research can have at most 5 attachments.',
+    };
+  }
+
+  const total = current.reduce((sum, row) => sum + row.sizeBytes, 0);
+
+  if (total + content.length > ATTACHMENT_LIMITS.maxTotalBytes) {
+    return {
+      status: 413,
+      error: 'The attachments of one research must total at most 25.0 MB.',
+    };
+  }
+
+  attachmentSequence += 1;
+  const mediaType = (mimeType ?? '').trim();
+  const row = {
+    id: `attachment-${attachmentSequence}`,
+    filename: trimmed,
+    mimeType:
+      mediaType !== '' &&
+      /^[a-z0-9][a-z0-9!#$&^_.+-]*\/[a-z0-9][a-z0-9!#$&^_.+-]*$/i.test(
+        mediaType,
+      )
+        ? mediaType.toLowerCase()
+        : 'application/octet-stream',
+    sizeBytes: content.length,
+    sha256: createHash('sha256').update(content).digest('hex'),
+    createdAt: new Date().toISOString(),
+  };
+
+  researchAttachments.set(researchId, [...current, row]);
+
+  return { row };
+}
+
 function reset() {
   for (const state of Object.values(dynamicJobs)) {
     state.calls = 0;
@@ -1168,6 +1338,8 @@ function reset() {
   emailAccountSequence = 0;
   researchCommunication.clear();
   researchInitialEmail.clear();
+  researchAttachments.clear();
+  attachmentSequence = 0;
   SETTINGS['research.pageCollection.resultsPerQuery'] = 20;
 }
 
@@ -1536,6 +1708,112 @@ const server = createServer(async (request, response) => {
     const id = decodeURIComponent(recipientQueueMatch[1]);
 
     return send(response, 200, recipientQueuePayload(id, url.searchParams));
+  }
+
+  const attachmentsMatch =
+    /^\/research\/([^/]+)\/communication\/attachments$/.exec(path);
+
+  if (attachmentsMatch !== null) {
+    const id = decodeURIComponent(attachmentsMatch[1]);
+
+    if (method === 'GET') {
+      return send(response, 200, attachmentsPayload(id));
+    }
+
+    if (method === 'POST') {
+      // The file is the request body; its metadata travels in headers.
+      const content = await readRawBody(request);
+      const outcome = createAttachment(id, {
+        filename: decodeHeader(request.headers['x-attachment-filename']),
+        mimeType: decodeHeader(request.headers['x-attachment-mime-type']),
+        content,
+      });
+
+      if (outcome.error !== undefined) {
+        return send(response, outcome.status, {
+          statusCode: outcome.status,
+          message: outcome.error,
+          error: outcome.status === 413 ? 'Payload Too Large' : 'Bad Request',
+        });
+      }
+
+      return send(response, 201, outcome.row);
+    }
+  }
+
+  const attachmentDeleteMatch =
+    /^\/research\/([^/]+)\/communication\/attachments\/([^/]+)$/.exec(path);
+
+  if (attachmentDeleteMatch !== null && method === 'DELETE') {
+    const researchId = decodeURIComponent(attachmentDeleteMatch[1]);
+    const attachmentId = decodeURIComponent(attachmentDeleteMatch[2]);
+    const current = researchAttachments.get(researchId) ?? [];
+
+    if (!current.some((row) => row.id === attachmentId)) {
+      return notFound(response, 'Attachment not found');
+    }
+
+    researchAttachments.set(
+      researchId,
+      current.filter((row) => row.id !== attachmentId),
+    );
+
+    return send(response, 200, { removed: true });
+  }
+
+  const testEmailMatch =
+    /^\/research\/([^/]+)\/communication\/test-email$/.exec(path);
+
+  if (testEmailMatch !== null && method === 'POST') {
+    const body = await readBody(request);
+    const recipient =
+      typeof body.recipient === 'string' ? body.recipient.trim() : '';
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient)) {
+      return send(response, 400, {
+        statusCode: 400,
+        message: ['recipient must be an email address'],
+        error: 'Bad Request',
+      });
+    }
+
+    if (TEST_EMAIL_DELAY_MS > 0) {
+      await delay(TEST_EMAIL_DELAY_MS);
+    }
+
+    const completedAt = new Date().toISOString();
+
+    if (recipient === 'fail@example.test') {
+      return send(response, 201, {
+        outcome: 'FAILED',
+        recipient,
+        failureCode: 'SMTP_REJECTED',
+        message: 'The mail server rejected the test message (SMTP 550).',
+        uncertain: false,
+        recorded: true,
+        completedAt,
+      });
+    }
+
+    if (recipient === 'uncertain@example.test') {
+      return send(response, 201, {
+        outcome: 'FAILED',
+        recipient,
+        failureCode: 'SMTP_ACCEPTANCE_UNCERTAIN',
+        message:
+          'The mail server did not confirm acceptance. The message may or may not have been delivered; check the mailbox before sending another test.',
+        uncertain: true,
+        recorded: true,
+        completedAt,
+      });
+    }
+
+    return send(response, 201, {
+      outcome: 'SENT',
+      recipient,
+      recorded: true,
+      completedAt,
+    });
   }
 
   const communicationEmailAccountMatch =

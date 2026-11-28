@@ -271,6 +271,79 @@ export function EmailAccountForm(props: EmailAccountFormProps) {
         </div>
       </section>
 
+      <section className="card">
+        <h2>Signature</h2>
+        <p className="muted">
+          Optional. The signature is reused in every initial email sent through
+          this account. The closing greeting is shown first, followed by the
+          sender name from General. Website and WhatsApp links must be full
+          http:// or https:// addresses so they stay clickable.
+        </p>
+
+        <div className="mt-4 grid gap-5">
+          <div className="grid gap-5 sm:grid-cols-2">
+            <TextField
+              id="email-account-signature-name"
+              name="signatureName"
+              label="Closing greeting"
+              defaultValue={account?.signature.name ?? ''}
+              maxLength={200}
+              hint="Shown first, for example 'Best regards,'."
+              error={errors.signatureName}
+            />
+
+            <TextField
+              id="email-account-signature-company"
+              name="signatureCompany"
+              label="Company name"
+              defaultValue={account?.signature.companyName ?? ''}
+              maxLength={200}
+              error={errors.signatureCompany}
+            />
+          </div>
+
+          <div className="grid gap-5 sm:grid-cols-2">
+            <TextField
+              id="email-account-signature-phone"
+              name="signaturePhone"
+              label="Telephone number"
+              defaultValue={account?.signature.phone ?? ''}
+              maxLength={50}
+              error={errors.signaturePhone}
+            />
+
+            <TextField
+              id="email-account-signature-website"
+              name="signatureWebsite"
+              label="Website link"
+              type="url"
+              defaultValue={account?.signature.website ?? ''}
+              maxLength={500}
+              error={errors.signatureWebsite}
+            />
+          </div>
+
+          <TextField
+            id="email-account-signature-whatsapp"
+            name="signatureWhatsapp"
+            label="WhatsApp link"
+            type="url"
+            defaultValue={account?.signature.whatsapp ?? ''}
+            maxLength={500}
+            error={errors.signatureWhatsapp}
+          />
+
+          <TextAreaField
+            id="email-account-signature-text"
+            name="signatureText"
+            label="Additional signature text"
+            defaultValue={account?.signature.text ?? ''}
+            maxLength={2000}
+            error={errors.signatureText}
+          />
+        </div>
+      </section>
+
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <section className="card mt-0">
           <h2>Outgoing mail (SMTP)</h2>
@@ -475,7 +548,7 @@ type TextFieldProps = {
   readonly id: string;
   readonly name: string;
   readonly label: string;
-  readonly type?: 'text' | 'email' | 'password' | 'number';
+  readonly type?: 'text' | 'email' | 'password' | 'number' | 'url';
   readonly defaultValue?: string | number;
   readonly value?: string;
   readonly onChange?: (value: string) => void;
@@ -537,6 +610,62 @@ function TextField({
         autoComplete={autoComplete}
         min={min}
         max={max}
+        maxLength={maxLength}
+        aria-invalid={error === undefined ? undefined : true}
+        aria-describedby={describedBy}
+      />
+      {hint !== undefined && (
+        <p className="hint" id={hintId}>
+          {hint}
+        </p>
+      )}
+      {error !== undefined && (
+        <p className="field-error" id={errorId}>
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
+type TextAreaFieldProps = {
+  readonly id: string;
+  readonly name: string;
+  readonly label: string;
+  readonly defaultValue?: string;
+  readonly maxLength?: number;
+  readonly hint?: string;
+  readonly error?: string;
+};
+
+function TextAreaField({
+  id,
+  name,
+  label,
+  defaultValue,
+  maxLength,
+  hint,
+  error,
+}: TextAreaFieldProps) {
+  const hintId = `${id}-hint`;
+  const errorId = `${id}-error`;
+  const describedBy =
+    hint !== undefined && error !== undefined
+      ? `${hintId} ${errorId}`
+      : hint !== undefined
+        ? hintId
+        : error !== undefined
+          ? errorId
+          : undefined;
+
+  return (
+    <div className="field">
+      <label htmlFor={id}>{label}</label>
+      <textarea
+        id={id}
+        name={name}
+        rows={4}
+        defaultValue={defaultValue}
         maxLength={maxLength}
         aria-invalid={error === undefined ? undefined : true}
         aria-describedby={describedBy}

@@ -1,4 +1,10 @@
 export {
+  fetchResearchAttachments,
+  removeResearchAttachment,
+  uploadResearchAttachment,
+} from './api/attachments.server';
+export { sendTestEmail } from './api/test-email.server';
+export {
   fetchResearch,
   fetchResearchCommunication,
   fetchResearches,
@@ -7,10 +13,27 @@ export {
   updateResearchInitialEmail,
 } from './api/research.server';
 export {
+  attachmentLimitsSchema,
+  removeResearchAttachmentResultSchema,
+  researchAttachmentListSchema,
+  researchAttachmentSchema,
+} from './model/attachments';
+export type {
+  AttachmentLimits,
+  RemoveResearchAttachmentResult,
+  ResearchAttachment,
+  ResearchAttachmentList,
+  ResearchAttachmentUpload,
+} from './model/attachments';
+export {
   researchCommunicationSchema,
   researchEmailAccountAssignmentSchema,
   researchInitialEmailSchema,
 } from './model/communication';
+export {
+  testEmailSendResultSchema,
+  type TestEmailSendResult,
+} from './model/test-email';
 export type {
   ResearchCommunication,
   ResearchEmailAccountAssignment,

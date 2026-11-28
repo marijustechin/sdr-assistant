@@ -7,6 +7,7 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  IsUrl,
   Max,
   MaxLength,
   Min,
@@ -19,6 +20,16 @@ import {
 
 const trimString = ({ value }: { value: unknown }): unknown =>
   typeof value === 'string' ? value.trim() : value;
+
+/**
+ * Signature fields are optional. A blank value is sent as `null` so the field
+ * is stored as "not configured"; both forms clear the stored value.
+ */
+const optionalSignatureValue = ({ value }: { value: unknown }): unknown => {
+  if (typeof value !== 'string') return value;
+  const trimmed = value.trim();
+  return trimmed === '' ? null : trimmed;
+};
 
 /**
  * Body of `POST /email-accounts`.
@@ -100,4 +111,48 @@ export class CreateEmailAccountDto {
   @IsNotEmpty()
   @MaxLength(1024)
   imapPassword!: string;
+
+  @Transform(optionalSignatureValue)
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  signatureName?: string | null;
+
+  @Transform(optionalSignatureValue)
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  signatureCompany?: string | null;
+
+  @Transform(optionalSignatureValue)
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  signaturePhone?: string | null;
+
+  @Transform(optionalSignatureValue)
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  @IsUrl(
+    { protocols: ['http', 'https'], require_protocol: true, require_tld: false },
+    { message: 'signatureWebsite must be an http:// or https:// link' },
+  )
+  signatureWebsite?: string | null;
+
+  @Transform(optionalSignatureValue)
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  @IsUrl(
+    { protocols: ['http', 'https'], require_protocol: true, require_tld: false },
+    { message: 'signatureWhatsapp must be an http:// or https:// link' },
+  )
+  signatureWhatsapp?: string | null;
+
+  @Transform(optionalSignatureValue)
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  signatureText?: string | null;
 }

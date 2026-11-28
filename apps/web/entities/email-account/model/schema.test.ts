@@ -5,9 +5,19 @@ import {
   describeVerificationFailure,
   emailAccountListSchema,
   emailAccountSchema,
+  hasSignatureContent,
   readEmailAccountForm,
   verificationStatusLabel,
 } from './schema';
+
+const EMPTY_SIGNATURE = {
+  name: null,
+  companyName: null,
+  phone: null,
+  website: null,
+  whatsapp: null,
+  text: null,
+};
 
 const ACCOUNT_RESPONSE = {
   id: 'account-1',
@@ -31,6 +41,7 @@ const ACCOUNT_RESPONSE = {
   imapVerificationStatus: 'NOT_TESTED',
   imapLastCheckedAt: null,
   imapVerificationFailureCode: null,
+  signature: EMPTY_SIGNATURE,
   createdAt: '2026-11-25T10:00:00.000Z',
   updatedAt: '2026-11-25T10:00:00.000Z',
 };
@@ -159,6 +170,33 @@ describe('email-account response schemas', () => {
     expect(verificationStatusLabel('VERIFIED')).toBe('Verified');
     expect(verificationStatusLabel('FAILED')).toBe('Failed');
   });
+
+  it('parses a configured signature and its optional links', () => {
+    const parsed = emailAccountSchema.parse({
+      ...ACCOUNT_RESPONSE,
+      signature: {
+        name: 'Synthetic Team',
+        companyName: 'Synthetic Trading',
+        phone: '+370 6000 0000',
+        website: 'https://example.test',
+        whatsapp: 'https://wa.me/37060000000',
+        text: 'Monday to Friday',
+      },
+    });
+
+    expect(parsed.signature.website).toBe('https://example.test');
+    expect(parsed.signature.whatsapp).toBe('https://wa.me/37060000000');
+    expect(hasSignatureContent(parsed.signature)).toBe(true);
+    expect(hasSignatureContent(EMPTY_SIGNATURE)).toBe(false);
+  });
+
+  it('rejects a payload without the signature block', () => {
+    const withoutSignature: Record<string, unknown> = { ...ACCOUNT_RESPONSE };
+
+    delete withoutSignature.signature;
+
+    expect(emailAccountSchema.safeParse(withoutSignature).success).toBe(false);
+  });
 });
 
 describe('readEmailAccountForm', () => {
@@ -284,5 +322,96 @@ describe('readEmailAccountForm', () => {
 
     expect(result.input.name).toBe('Synthetic account');
     expect(result.input.smtpPassword).toBe(' secret with spaces ');
+  });
+
+  it('reads and normalises the optional signature fields', () => {
+    const result = readEmailAccountForm(
+      toFormData({
+        ...VALID_FORM,
+        signatureName: '  Synthetic Team  ',
+        signatureCompany: '   ',
+        signaturePhone: '+370 6000 0000',
+        signatureWebsite: 'https://example.test',
+        signatureWhatsapp: 'https://wa.me/37060000000',
+        signatureText: '  Monday to Friday  ',
+      }),
+      'create',
+    );
+
+    expect(result.ok).toBe(true);
+
+    if (!result.ok) {
+      throw new Error('Expected the form to be valid');
+    }
+
+    expect(result.input.signatureName).toBe('Synthetic Team');
+    expect(result.input.signatureCompany).toBeNull();
+    expect(result.input.signaturePhone).toBe('+370 6000 0000');
+    expect(result.input.signatureWebsite).toBe('https://example.test');
+    expect(result.input.signatureWhatsapp).toBe('https://wa.me/37060000000');
+    expect(result.input.signatureText).toBe('Monday to Friday');
+  });
+
+  it('leaves an empty signature unconfigured', () => {
+    const result = readEmailAccountForm(toFormData(VALID_FORM), 'edit');
+
+    expect(result.ok).toBe(true);
+
+    if (!result.ok) {
+      throw new Error('Expected the form to be valid');
+    }
+
+    expect(result.input.signatureName).toBeNull();
+    expect(result.input.signatureWebsite).toBeNull();
+    expect(result.input.signatureWhatsapp).toBeNull();
+    expect(result.input.signatureText).toBeNull();
+  });
+
+  it('rejects a signature link that is not a full HTTP(S) URL', () => {
+    const result = readEmailAccountForm(
+      toFormData({
+        ...VALID_FORM,
+        signatureWebsite: 'javascript:alert(1)',
+        signatureWhatsapp: 'wa.me/37060000000',
+      }),
+      'create',
+    );
+
+    expect(result.ok).toBe(false);
+
+    if (result.ok) {
+      throw new Error('Expected the form to be invalid');
+    }
+
+    expect(result.fieldErrors.signatureWebsite).toBe(
+      'Website link must be a full http:// or https:// link.',
+    );
+    expect(result.fieldErrors.signatureWhatsapp).toBe(
+      'WhatsApp link must be a full http:// or https:// link.',
+    );
+  });
+
+  it('rejects over-long signature values', () => {
+    const result = readEmailAccountForm(
+      toFormData({
+        ...VALID_FORM,
+        signatureName: 'x'.repeat(201),
+        signatureText: 'x'.repeat(2001),
+      }),
+      'create',
+    );
+
+    expect(result.ok).toBe(false);
+
+    if (result.ok) {
+      throw new Error('Expected the form to be invalid');
+    }
+
+    expect(result.fieldErrors.signatureName).toBe(
+      'Closing greeting must be 200 characters or fewer.',
+    );
+    expect(result.fieldErrors.signatureText).toBe(
+      'Additional signature text must be 2000 characters or fewer.',
+    );
   });
 });

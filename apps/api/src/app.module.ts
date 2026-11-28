@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common'
 import { EmailAccountsModule } from './modules/email-accounts/email-accounts.module.js'
 import { HealthModule } from './modules/health/health.module.js'
 import { LeadQualificationModule } from './modules/lead-qualification/lead-qualification.module.js'
+import { OutreachEmailModule } from './modules/outreach-email/outreach-email.module.js'
 import { PrismaModule } from './modules/prisma/prisma.module.js'
 import { ProductsModule } from './modules/products/products.module.js'
 import { ResearchCommunicationModule } from './modules/research-communication/research-communication.module.js'
@@ -19,6 +20,7 @@ import { SettingsModule } from './modules/settings/settings.module.js'
     ResearchCommunicationModule,
     SettingsModule,
     LeadQualificationModule,
+    OutreachEmailModule,
   ],
 })
 export class AppModule {}

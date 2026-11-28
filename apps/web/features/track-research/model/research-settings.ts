@@ -1,5 +1,9 @@
 import type { EmailAccount } from '@/entities/email-account/client';
-import type { ResearchInitialEmail } from '@/entities/research/client';
+import type {
+  AttachmentLimits,
+  ResearchAttachment,
+  ResearchInitialEmail,
+} from '@/entities/research/client';
 
 /**
  * Research communication data loaded by the research page.
@@ -14,6 +18,19 @@ export type ResearchCommunicationSettingsData =
       readonly emailAccountId: string | null;
       readonly initialEmail: ResearchInitialEmail | null;
       readonly accounts: readonly EmailAccount[];
+    }
+  | { readonly state: 'error'; readonly message: string };
+
+/**
+ * The research-owned attachments and the active limits. Loaded independently
+ * of the communication settings so an attachment failure never hides the
+ * assignment or the initial email.
+ */
+export type ResearchAttachmentsData =
+  | {
+      readonly state: 'ready';
+      readonly limits: AttachmentLimits;
+      readonly attachments: readonly ResearchAttachment[];
     }
   | { readonly state: 'error'; readonly message: string };
 

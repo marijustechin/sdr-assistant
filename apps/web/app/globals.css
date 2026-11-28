@@ -1206,6 +1206,134 @@
     font-weight: 650;
   }
 
+  /* ------------------------------------------------ email composition */
+
+  .preview-heading {
+    margin: 0 0 0.35rem;
+    font-size: 0.95rem;
+    font-weight: 650;
+  }
+
+  .email-signature {
+    margin-top: 0.5rem;
+    padding: 0.6rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--subtle);
+  }
+
+  .email-signature p {
+    margin: 0.15rem 0;
+    overflow-wrap: anywhere;
+  }
+
+  .email-signature-label {
+    color: var(--muted);
+    font-weight: 600;
+  }
+
+  .email-signature .email-signature-text {
+    margin-top: 0.45rem;
+    white-space: pre-wrap;
+  }
+
+  .email-preview {
+    margin-top: 0.75rem;
+    padding: 0.85rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--subtle);
+  }
+
+  .email-preview-subject p {
+    margin: 0.2rem 0 0;
+    font-weight: 650;
+    overflow-wrap: anywhere;
+  }
+
+  .email-preview-body {
+    margin-top: 0.75rem;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
+  .email-preview-body p {
+    margin: 0;
+  }
+
+  .email-preview-signature {
+    margin-top: 0.9rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border);
+  }
+
+  .email-preview-signature .email-signature {
+    margin-top: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+  }
+
+  .email-preview-attachments {
+    margin-top: 0.9rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border);
+  }
+
+  .attachment-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    margin: 0.6rem 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .attachment-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.5rem 0.6rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+  }
+
+  .attachment-name {
+    font-weight: 600;
+    overflow-wrap: anywhere;
+  }
+
+  .email-preview .attachment-row {
+    padding: 0.35rem 0;
+    border: 0;
+    border-bottom: 1px solid var(--border);
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .email-preview .attachment-row:last-child {
+    border-bottom: 0;
+  }
+
+  .email-attachment-list {
+    margin-top: 0.35rem;
+  }
+
+  .send-test-email {
+    margin-top: 0.85rem;
+    padding: 0.8rem 0.9rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+  }
+
+  .send-test-email .field {
+    margin-top: 0.6rem;
+  }
+
   .offer-evidence {
     margin-top: 0.65rem;
   }

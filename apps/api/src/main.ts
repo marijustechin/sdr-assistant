@@ -9,6 +9,7 @@ import {
 } from '@nestjs/platform-fastify'
 
 import { AppModule } from './app.module.js'
+import { attachmentRequestBodyLimitBytes } from './modules/research-communication/attachment-limits.js'
 
 const port = Number(process.env.PORT ?? 4000)
 const host = process.env.HOST ?? '0.0.0.0'
@@ -26,6 +27,24 @@ app.useGlobalPipes(
     transform: true,
   }),
 )
+
+// Attachment uploads send the file itself as the request body. Only this one
+// media type is parsed as a buffer, and its body limit is the configured
+// per-file limit plus envelope headroom; the JSON and form parsers keep their
+// normal limits. The service validates the size again and rejects an empty body.
+app
+  .getHttpAdapter()
+  .getInstance()
+  .addContentTypeParser(
+    'application/octet-stream',
+    {
+      parseAs: 'buffer',
+      bodyLimit: attachmentRequestBodyLimitBytes(),
+    },
+    (_request, body, done) => {
+      done(null, body)
+    },
+  )
 
 await app.listen({ port, host })
 

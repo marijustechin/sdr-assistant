@@ -9,9 +9,26 @@ export { fetchResearchStatus, resumeResearch } from './api/research.client';
 export { fetchResearchRecipientQueue } from './api/recipient-queue.client';
 export type { RecipientQueueRequest } from './api/recipient-queue.client';
 export {
+  attachmentLimitsSchema,
+  removeResearchAttachmentResultSchema,
+  researchAttachmentListSchema,
+  researchAttachmentSchema,
+} from './model/attachments';
+export type {
+  AttachmentLimits,
+  RemoveResearchAttachmentResult,
+  ResearchAttachment,
+  ResearchAttachmentList,
+  ResearchAttachmentUpload,
+} from './model/attachments';
+export {
   researchEmailAccountAssignmentSchema,
   researchInitialEmailSchema,
 } from './model/communication';
+export {
+  testEmailSendResultSchema,
+  type TestEmailSendResult,
+} from './model/test-email';
 export type {
   ResearchEmailAccountAssignment,
   ResearchInitialEmail,

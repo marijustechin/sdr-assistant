@@ -40,6 +40,8 @@ export type FetchOptions = {
   timeoutMs?: number;
   method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
   body?: unknown;
+  /** Raw binary request body, sent unchanged. Takes precedence over `body`. */
+  bytes?: Uint8Array;
   headers?: Record<string, string>;
 };
 
@@ -52,21 +54,29 @@ export async function fetchWithTimeout(
     timeoutMs = DEFAULT_TIMEOUT_MS,
     method = 'GET',
     body,
+    bytes,
     headers,
   } = options;
 
   const timeout = AbortSignal.timeout(timeoutMs);
   const combined = signal ? AbortSignal.any([signal, timeout]) : timeout;
 
+  const requestBody: BodyInit | undefined =
+    bytes !== undefined
+      ? new Blob([bytes.slice().buffer])
+      : body === undefined
+        ? undefined
+        : JSON.stringify(body);
+
   return fetch(url, {
     method,
     cache: 'no-store',
     signal: combined,
     headers:
-      body === undefined
+      requestBody === undefined || bytes !== undefined
         ? headers
         : { 'content-type': 'application/json', ...headers },
-    body: body === undefined ? undefined : JSON.stringify(body),
+    body: requestBody,
   });
 }
 
@@ -165,4 +175,26 @@ export function patchJson<T>(
   options: Omit<FetchOptions, 'method' | 'body'> = {},
 ): Promise<ApiResult<T>> {
   return requestJson(url, schema, { ...options, method: 'PATCH', body });
+}
+
+/**
+ * Sends a raw binary body with caller-supplied headers. Used for attachment
+ * uploads, where the file itself is the body and the metadata travels in
+ * headers; the response is still validated JSON.
+ */
+export function postBytes<T>(
+  url: string,
+  bytes: Uint8Array,
+  schema: ZodType<T>,
+  options: Omit<FetchOptions, 'method' | 'body' | 'bytes'> = {},
+): Promise<ApiResult<T>> {
+  return requestJson(url, schema, { ...options, method: 'POST', bytes });
+}
+
+export function deleteJson<T>(
+  url: string,
+  schema: ZodType<T>,
+  options: Omit<FetchOptions, 'method' | 'body'> = {},
+): Promise<ApiResult<T>> {
+  return requestJson(url, schema, { ...options, method: 'DELETE' });
 }

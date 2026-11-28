@@ -1,17 +1,13 @@
-/**
- * Browser-safe entry point for `entities/email-account`.
- *
- * A Client Component imports this file, never the barrel: the barrel also
- * re-exports the `server-only` HTTP queries.
- */
 export {
   connectionVerificationResultSchema,
   describeVerificationFailure,
   emailAccountListSchema,
   emailAccountSchema,
+  emailAccountSignatureSchema,
   emailConnectionProtocolSchema,
   emailSecurityModeSchema,
   emailVerificationStatusSchema,
+  hasSignatureContent,
   readEmailAccountForm,
   verificationStatusLabel,
 } from './model/schema';
@@ -22,6 +18,7 @@ export type {
   EmailAccountFormMode,
   EmailAccountFormResult,
   EmailAccountInput,
+  EmailAccountSignature,
   EmailConnectionProtocol,
   EmailSecurityMode,
   EmailVerificationStatus,

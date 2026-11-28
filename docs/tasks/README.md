@@ -44,6 +44,7 @@ Rules:
 | SDR-007A | Stage 05 Contact Discovery — Revised Scope | DONE / HUMAN_APPROVED | [SDR-007A-lead-qualification-contact-discovery.md](SDR-007A-lead-qualification-contact-discovery.md) |
 | SDR-008 | Research Email Account Assignment | DONE / HUMAN_APPROVED | [SDR-008-research-email-account-assignment.md](SDR-008-research-email-account-assignment.md) |
 | SDR-009 | Initial Email and Automatic Recipient Queue | DONE / HUMAN_APPROVED | [SDR-009-initial-email-and-recipient-queue.md](SDR-009-initial-email-and-recipient-queue.md) |
+| SDR-010 | Email Composition Completion | DONE / HUMAN_APPROVED | [SDR-010-email-composition-completion.md](SDR-010-email-composition-completion.md) |
 
 SDR-001, SDR-002 and SDR-003 are `DONE`. SDR-004 is registered; its implementation and all
 mandatory proof gates are complete, the read-only preflight and authorized database
@@ -605,3 +606,89 @@ and is `DONE` (the narrow exception is complete; the freeze remains active).
   main` without force; the exact commit hash, staged-manifest comparison, remote verification and
   post-commit working-tree status are recorded in the completion report (a commit cannot contain
   its own hash). SDR-010 was not started.
+
+- SDR-010 was registered and implemented on 2026-11-27. It completes the research initial-email
+  composition with an optional reusable signature on each email account (name, company name,
+  telephone, website link, WhatsApp link and additional text) and research-owned attachments
+  (private PostgreSQL storage, filename/size list, removal, complete email preview). One additive
+  migration adds six nullable `email_accounts` columns and the `research_attachments` table; it is
+  **not deployed**, and the API must not be restarted before it is applied.
+  `apps/api/src/modules/research` and Stage 01–05 were not changed. The single canonical proof
+  passed with exit code 0:
+  API build, **58/58** focused backend tests, `verify:web` **223/223** unit tests plus
+  typecheck/lint/format, and `e2e:web` **51/51** scenarios (48 preserved + 3 new), ending
+  `PASS: SDR-010 email composition, signatures and attachments`. `PRODUCT.md` now records the
+  simplified autonomous model (one initial contact per company, no automatic follow-ups,
+  communication only after a response, prior-mailbox-history awareness before outreach, immediate
+  or scheduled first contact, X-minute interval, no campaign calendar, twice-daily global sync,
+  per-mailbox **Check mail now**, persistent history and response statistics) and the revised
+  SDR-010…SDR-013 roadmap. No email, SMTP/IMAP, mailbox synchronization, provider call, database
+  change or commit occurred; all 30 pre-existing untracked artifacts remain byte-identical.
+  SDR-010 is `READY_FOR_HUMAN_REVIEW`; live migration deployment and live persistence acceptance
+  remain for the owner. The running `node --watch` dev API restarted when the proof built the API
+  and now returns HTTP 500 for email-account reads until the additive migration is applied; the
+  API must be restarted after `prisma migrate deploy` (see
+  [SDR-010 §10](SDR-010-email-composition-completion.md#10-remaining-limitations-or-blockers)
+  item 10). Evidence:
+  [SDR-010 §8–§9](SDR-010-email-composition-completion.md#8-verification-result).
+
+- On 2026-11-28 the local SDR-010 environment was reconciled. `prisma migrate status` reports 14
+  migrations and `Database schema is up to date!`, so the additive signature/attachment migration
+  is applied locally; the live API returns 200 for health and email-account reads (with the
+  `signature` object), and the live edit form serves the signature inputs. The stale detached
+  `npm run dev` stack from 2026-11-27 21:51 was stopped; ports 3000 and 4000 are free and no other
+  `sdr-assistant` node/cmd process remains. No source, test, migration or database content was
+  changed by this cleanup. The [SDR-010 §10](SDR-010-email-composition-completion.md#10-remaining-limitations-or-blockers)
+  items 1 and 10 are resolved locally; SDR-010 remains `READY_FOR_HUMAN_REVIEW` pending human
+  acceptance. Evidence:
+  [SDR-010 §12](SDR-010-email-composition-completion.md#12-local-environment-reconciliation--2026-11-28).
+
+- On 2026-11-28 a focused signature display-order correction was applied under SDR-010 after the
+  owner's practical verification. The existing `signatureName` column is now the **closing
+  greeting** (form label changed; no new field, no migration), the sender name is rendered from
+  the account's existing `senderName`, and the order is closing greeting → sender name → company
+  name → telephone → website → WhatsApp → additional signature text in both the signature preview
+  and the complete email preview. No schema, backend or migration change was made. The single
+  focused proof passed with exit code 0: web typecheck, lint, **74/74** focused web tests, format
+  check and **3/3** focused Playwright scenarios, ending
+  `PASS: SDR-010 signature order correction`. The full `verify:web`/`e2e:web` suites and backend
+  tests were intentionally not run per the owner's scoped verification. No process on ports
+  3000/4000 was started. SDR-010 remains `READY_FOR_HUMAN_REVIEW`. Evidence:
+  [SDR-010 §13](SDR-010-email-composition-completion.md#13-signature-display-order-correction--2026-11-28).
+
+- On 2026-11-28, before closing SDR-010, the owner requested and approved a focused **Send test
+  email** feature. Implemented: a reusable outreach message builder and Nodemailer SMTP sender
+  (`apps/api/src/modules/outreach-email`), `POST /research/:jobId/communication/test-email`, a
+  validated manual recipient, saved-composition-only sending, I/O progress, an in-flight duplicate
+  guard, definitive/uncertain failure reporting without automatic retry, and a separate
+  `research_test_email_sends` audit table that never touches the prepared recipient queue or
+  first-contact statistics. The frontend adds a Send test email control below the complete preview
+  with recipient validation and result display. The additive migration
+  `20261128190000_add_research_test_email_sends` was applied to the local database under explicit
+  owner approval after a protected backup (2,623,584 bytes, SHA-256
+  `2e87db78af551f3c6f662d3c8d5d59e4e0d4595deeba324a7f61c38e3cfd507b`, 13 `TABLE DATA` entries,
+  complete archive read, restricted ACL; migration ledger 15/0/0; checksum matches the repository
+  file; all baseline counts unchanged). The single focused proof passed with exit code 0: API
+  build, **29/29** backend tests, web typecheck/lint, **47/47** focused web tests, format check and
+  **4/4** focused Playwright scenarios, ending `PASS: SDR-010 send test email`. The proof uses a
+  fake SMTP sender and the mock API only; **no real email was sent**, and the owner performs the
+  first manual test. The full `verify:web`/`e2e:web` suites and unrelated backend tests were not
+  run (focused scope). All 30 pre-existing untracked artifacts remain byte-identical. SDR-010
+  remains `READY_FOR_HUMAN_REVIEW`; nothing was committed or pushed. Evidence:
+  [SDR-010 §14](SDR-010-email-composition-completion.md#14-send-test-email--2026-11-28).
+
+- On 2026-11-28 the human owner accepted SDR-010 as **`DONE / HUMAN_APPROVED`**. The owner
+  performed a real test email send and confirmed receipt in Outlook with the correct sender name,
+  subject, message formatting, signature, clickable links and attachment. Both SDR-010 migrations
+  are verified applied: `20261127233000_add_signature_and_research_attachments` and
+  `20261128190000_add_research_test_email_sends` (both finished, not rolled back, checksums match
+  the repository files; 15 migrations, schema up to date). The acceptance, preserved evidence and
+  closure scope are recorded in
+  [SDR-010 §15](SDR-010-email-composition-completion.md#15-human-acceptance-and-closure--2026-11-28).
+  The SDR-010 scope was committed with `feat: complete email composition and test email sending`
+  and pushed to `origin main` without force; credentials and `.env`, real email content, recipient
+  addresses, signature values, attachment files, screenshots, generated/build/test/log artifacts
+  and the 30 pre-existing untracked research/tooling artifacts were excluded. The exact commit
+  hash, staged-manifest review, remote verification and post-commit working-tree status are
+  recorded in the completion report (a commit cannot contain its own hash). **SDR-011 was not
+  started.**

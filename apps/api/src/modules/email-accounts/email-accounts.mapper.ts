@@ -28,8 +28,28 @@ export type EmailAccountRow = {
   readonly imapVerificationStatus: EmailVerificationStatus;
   readonly imapLastCheckedAt: Date | null;
   readonly imapVerificationFailureCode: string | null;
+  readonly signatureName: string | null;
+  readonly signatureCompany: string | null;
+  readonly signaturePhone: string | null;
+  readonly signatureWebsite: string | null;
+  readonly signatureWhatsapp: string | null;
+  readonly signatureText: string | null;
   readonly createdAt: Date;
   readonly updatedAt: Date;
+};
+
+/**
+ * The reusable signature block of one account. Every field is optional; an
+ * unconfigured field is `null`. Website and WhatsApp are validated HTTP(S)
+ * links, so the client may render them as clickable anchors.
+ */
+export type EmailAccountSignature = {
+  readonly name: string | null;
+  readonly companyName: string | null;
+  readonly phone: string | null;
+  readonly website: string | null;
+  readonly whatsapp: string | null;
+  readonly text: string | null;
 };
 
 /** One email account as returned by every email-account endpoint. */
@@ -55,6 +75,7 @@ export type EmailAccountResponse = {
   readonly imapVerificationStatus: EmailVerificationStatus;
   readonly imapLastCheckedAt: string | null;
   readonly imapVerificationFailureCode: string | null;
+  readonly signature: EmailAccountSignature;
   readonly createdAt: string;
   readonly updatedAt: string;
 };
@@ -97,6 +118,14 @@ export function toEmailAccountResponse(
     imapVerificationStatus: row.imapVerificationStatus,
     imapLastCheckedAt: toIsoString(row.imapLastCheckedAt),
     imapVerificationFailureCode: row.imapVerificationFailureCode,
+    signature: {
+      name: row.signatureName,
+      companyName: row.signatureCompany,
+      phone: row.signaturePhone,
+      website: row.signatureWebsite,
+      whatsapp: row.signatureWhatsapp,
+      text: row.signatureText,
+    },
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };

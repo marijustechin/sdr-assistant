@@ -7,6 +7,7 @@ import type { ResearchResponse } from '@/entities/research';
 import {
   parseResearchResult,
   resumeResearch,
+  type ResearchAttachment,
   type ResearchInitialEmail,
 } from '@/entities/research/client';
 import { formatDateTime, shortenId } from '@/shared/lib/format';
@@ -14,7 +15,10 @@ import { toast } from '@/shared/lib/toast';
 
 import type { ResearchSection } from '../model/sections';
 import type { RecipientQueueData } from '../model/recipient-queue';
-import type { ResearchCommunicationSettingsData } from '../model/research-settings';
+import type {
+  ResearchAttachmentsData,
+  ResearchCommunicationSettingsData,
+} from '../model/research-settings';
 import { buildMarketSummary } from '../model/market-view';
 import { useResearchPolling } from '../model/use-research-polling';
 import { useStage05Contacts } from '../model/use-stage05-contacts';
@@ -32,6 +36,7 @@ type ResearchWorkspaceProps = {
   initialResearch: ResearchResponse;
   productName: string;
   communication: ResearchCommunicationSettingsData;
+  attachments: ResearchAttachmentsData;
   recipientQueue: RecipientQueueData;
 };
 
@@ -81,6 +86,7 @@ export function ResearchWorkspace({
   initialResearch,
   productName,
   communication: initialCommunication,
+  attachments: initialAttachments,
   recipientQueue,
 }: ResearchWorkspaceProps) {
   const { research, isPolling, errorMessage, transientError, isStale, retry } =
@@ -88,6 +94,9 @@ export function ResearchWorkspace({
   // The assignment lives above the tab content so switching sections does not
   // remount it from a stale server value; a page reload reads PostgreSQL again.
   const [communication, setCommunication] = useState(initialCommunication);
+  // Attachments and the initial email are lifted for the same reason: an upload
+  // made in Settings must still be there after switching to another tab.
+  const [attachments, setAttachments] = useState(initialAttachments);
   const stage05 = useStage05Contacts(research.id);
   const result = useMemo(() => parseResearchResult(research), [research]);
   const marketSummary = useMemo(
@@ -138,6 +147,16 @@ export function ResearchWorkspace({
   function handleInitialEmailChange(initialEmail: ResearchInitialEmail): void {
     setCommunication((current) =>
       current.state === 'ready' ? { ...current, initialEmail } : current,
+    );
+  }
+
+  function handleAttachmentsChange(
+    nextAttachments: readonly ResearchAttachment[],
+  ): void {
+    setAttachments((current) =>
+      current.state === 'ready'
+        ? { ...current, attachments: nextAttachments }
+        : current,
     );
   }
 
@@ -334,8 +353,10 @@ export function ResearchWorkspace({
           <ResearchSettings
             researchId={research.id}
             communication={communication}
+            attachments={attachments}
             onEmailAccountChange={handleEmailAccountChange}
             onInitialEmailChange={handleInitialEmailChange}
+            onAttachmentsChange={handleAttachmentsChange}
           />
         )}
       </div>

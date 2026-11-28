@@ -53,6 +53,8 @@ model Research {
   leadQualificationRuns LeadQualificationRun[]
   communicationSettings ResearchCommunicationSettings?
   recipients      ResearchRecipient[]
+  attachments     ResearchAttachment[]
+  testEmailSends  ResearchTestEmailSend[]
 
   @@map("researches")
 }
@@ -123,6 +125,11 @@ enum EmailVerificationStatus {
 /// or returned. The verification fields below are independent per protocol:
 /// changing one protocol's configuration resets only that protocol's result.
 /// There is intentionally no relation to research yet.
+///
+/// The signature columns are an optional, reusable block that is composed into
+/// every initial email sent through this account. `null` means the field is not
+/// configured. They hold plain text only; the website and WhatsApp values are
+/// validated HTTP(S) links and no rich-text markup is stored.
 model EmailAccount {
   id           String  @id @default(cuid())
   name         String
@@ -141,6 +148,16 @@ model EmailAccount {
   imapSecurity          EmailSecurityMode
   imapUsername          String
   imapPasswordEncrypted String
+
+  /// Optional reusable signature block, rendered after the owner-authored
+  /// message. Every field is optional; `signatureWebsite` and
+  /// `signatureWhatsapp` hold a validated HTTP(S) link when present.
+  signatureName     String?
+  signatureCompany  String?
+  signaturePhone    String?
+  signatureWebsite  String?
+  signatureWhatsapp String?
+  signatureText     String?
 
   /// Result of the last SMTP connection test, never of a sending attempt.
   smtpVerificationStatus      EmailVerificationStatus @default(NOT_TESTED)
@@ -234,6 +251,68 @@ model ResearchRecipient {
   @@unique([researchId, primaryEmail])
   @@index([researchId, status])
   @@map("research_recipients")
+}
+
+/// One private attachment of a research's initial email.
+///
+/// The attachment belongs to the research, not to the email account: the same
+/// initial email is shared by every prepared recipient of that research. The
+/// file bytes are stored in this row so metadata and content are written and
+/// deleted atomically, survive an application restart and are covered by the
+/// database backup. No HTTP route returns `content`; the API exposes metadata
+/// only, so the file is never publicly readable and no filesystem path exists
+/// that could be traversed. Size, count and total limits are enforced by the
+/// API and configurable through `ATTACHMENT_*` environment variables.
+model ResearchAttachment {
+  id         String   @id @default(cuid())
+  researchId String
+  research   Research @relation(fields: [researchId], references: [id], onDelete: Cascade)
+  /// The sanitised display name exactly as uploaded; never used as a path.
+  filename   String
+  mimeType   String
+  sizeBytes  Int
+  /// Lowercase hex SHA-256 of `content`; integrity metadata only.
+  sha256     String
+  content    Bytes
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([researchId, createdAt])
+  @@map("research_attachments")
+}
+
+/// Outcome of one owner-triggered test email.
+enum TestEmailSendStatus {
+  SENT
+  FAILED
+}
+
+/// One recorded test-send attempt. Test sends are deliberately separate from
+/// first-contact communication: they never change a prepared recipient, never
+/// count towards first-contact statistics and never trigger automatic
+/// communication. The account and sender are stored as snapshots so the record
+/// stays readable after an account edit; the message body and the attachment
+/// bytes are not duplicated here.
+///
+/// `failureCode` and `failureMessage` are safe, enumerable values derived from
+/// the transport result; raw provider responses and credentials are never
+/// stored.
+model ResearchTestEmailSend {
+  id              String              @id @default(cuid())
+  researchId      String
+  research        Research            @relation(fields: [researchId], references: [id], onDelete: Cascade)
+  emailAccountId  String
+  senderEmail     String
+  recipient       String
+  subject         String
+  attachmentCount Int                 @default(0)
+  status          TestEmailSendStatus
+  failureCode     String?
+  failureMessage  String?
+  createdAt       DateTime            @default(now())
+
+  @@index([researchId, createdAt])
+  @@map("research_test_email_sends")
 }
 
 /// One stored value per registered setting key. The code registry owns the

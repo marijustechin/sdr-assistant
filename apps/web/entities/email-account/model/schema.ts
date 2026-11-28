@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { toHttpUrl } from '@/shared/lib/url';
+
 /**
  * Wire contract of `GET/POST /email-accounts` and `GET/PATCH /email-accounts/:id`.
  *
@@ -11,6 +13,34 @@ import { z } from 'zod';
 export const emailSecurityModeSchema = z.enum(['TLS', 'STARTTLS']);
 
 export type EmailSecurityMode = z.infer<typeof emailSecurityModeSchema>;
+
+/**
+ * The optional, reusable signature block of one account. Unset fields are
+ * `null`. Website and WhatsApp are validated HTTP(S) links; every value is
+ * plain text and is rendered as text, never as markup.
+ */
+export const emailAccountSignatureSchema = z.object({
+  name: z.string().nullable(),
+  companyName: z.string().nullable(),
+  phone: z.string().nullable(),
+  website: z.string().nullable(),
+  whatsapp: z.string().nullable(),
+  text: z.string().nullable(),
+});
+
+export type EmailAccountSignature = z.infer<typeof emailAccountSignatureSchema>;
+
+/** True when at least one signature field carries visible text. */
+export function hasSignatureContent(signature: EmailAccountSignature): boolean {
+  return (
+    signature.name !== null ||
+    signature.companyName !== null ||
+    signature.phone !== null ||
+    signature.website !== null ||
+    signature.whatsapp !== null ||
+    signature.text !== null
+  );
+}
 
 /**
  * A historical connection-test result. `NOT_TESTED` also describes a result
@@ -51,6 +81,7 @@ export const emailAccountSchema = z.object({
   imapVerificationStatus: emailVerificationStatusSchema,
   imapLastCheckedAt: z.string().nullable(),
   imapVerificationFailureCode: verificationFailureCodeSchema,
+  signature: emailAccountSignatureSchema,
   createdAt: z.string(),
   updatedAt: z.string(),
 });
@@ -140,6 +171,12 @@ export type EmailAccountInput = {
   imapSecurity: EmailSecurityMode;
   imapUsername: string;
   imapPassword?: string;
+  signatureName: string | null;
+  signatureCompany: string | null;
+  signaturePhone: string | null;
+  signatureWebsite: string | null;
+  signatureWhatsapp: string | null;
+  signatureText: string | null;
 };
 
 export type EmailAccountFormMode = 'create' | 'edit';
@@ -212,6 +249,54 @@ const emailAccountFieldsSchema = z.object({
 
 const MAX_PASSWORD_LENGTH = 1024;
 
+const MAX_SIGNATURE_TEXT_LENGTH = 2000;
+const MAX_SIGNATURE_LINK_LENGTH = 500;
+
+/** Optional signature text: blank means "not configured", not an error. */
+function signatureTextField(label: string, max: number) {
+  return z
+    .string()
+    .trim()
+    .max(max, `${label} must be ${max} characters or fewer.`);
+}
+
+/**
+ * Optional signature link. A blank value clears it; anything else must be a
+ * full HTTP(S) URL so the rendered email can never contain a `javascript:` or
+ * other unsafe anchor target.
+ */
+function signatureLinkField(label: string) {
+  return z
+    .string()
+    .trim()
+    .max(
+      MAX_SIGNATURE_LINK_LENGTH,
+      `${label} must be ${MAX_SIGNATURE_LINK_LENGTH} characters or fewer.`,
+    )
+    .refine(
+      (value) => value === '' || toHttpUrl(value) !== null,
+      `${label} must be a full http:// or https:// link.`,
+    );
+}
+
+const signatureFieldsSchema = z.object({
+  signatureName: signatureTextField('Closing greeting', 200),
+  signatureCompany: signatureTextField('Company name', 200),
+  signaturePhone: signatureTextField('Telephone number', 50),
+  signatureWebsite: signatureLinkField('Website link'),
+  signatureWhatsapp: signatureLinkField('WhatsApp link'),
+  signatureText: signatureTextField(
+    'Additional signature text',
+    MAX_SIGNATURE_TEXT_LENGTH,
+  ),
+});
+
+function normaliseSignatureValue(value: string): string | null {
+  const trimmed = value.trim();
+
+  return trimmed === '' ? null : trimmed;
+}
+
 function readString(formData: FormData, name: string): string {
   const value = formData.get(name);
 
@@ -275,6 +360,25 @@ export function readEmailAccountForm(
     }
   }
 
+  const parsedSignature = signatureFieldsSchema.safeParse({
+    signatureName: readString(formData, 'signatureName'),
+    signatureCompany: readString(formData, 'signatureCompany'),
+    signaturePhone: readString(formData, 'signaturePhone'),
+    signatureWebsite: readString(formData, 'signatureWebsite'),
+    signatureWhatsapp: readString(formData, 'signatureWhatsapp'),
+    signatureText: readString(formData, 'signatureText'),
+  });
+
+  if (!parsedSignature.success) {
+    for (const issue of parsedSignature.error.issues) {
+      const field = issue.path.join('.');
+
+      if (field !== '' && fieldErrors[field] === undefined) {
+        fieldErrors[field] = issue.message;
+      }
+    }
+  }
+
   const smtpPassword = readPassword(
     readString(formData, 'smtpPassword'),
     'SMTP',
@@ -294,7 +398,11 @@ export function readEmailAccountForm(
     fieldErrors.imapPassword = imapPassword.error;
   }
 
-  if (!parsed.success || Object.keys(fieldErrors).length > 0) {
+  if (
+    !parsed.success ||
+    !parsedSignature.success ||
+    Object.keys(fieldErrors).length > 0
+  ) {
     return { ok: false, fieldErrors };
   }
 
@@ -305,6 +413,24 @@ export function readEmailAccountForm(
       enabled: ['on', 'true', '1'].includes(readString(formData, 'enabled')),
       smtpPassword: smtpPassword.password,
       imapPassword: imapPassword.password,
+      signatureName: normaliseSignatureValue(
+        parsedSignature.data.signatureName,
+      ),
+      signatureCompany: normaliseSignatureValue(
+        parsedSignature.data.signatureCompany,
+      ),
+      signaturePhone: normaliseSignatureValue(
+        parsedSignature.data.signaturePhone,
+      ),
+      signatureWebsite: normaliseSignatureValue(
+        parsedSignature.data.signatureWebsite,
+      ),
+      signatureWhatsapp: normaliseSignatureValue(
+        parsedSignature.data.signatureWhatsapp,
+      ),
+      signatureText: normaliseSignatureValue(
+        parsedSignature.data.signatureText,
+      ),
     },
   };
 }

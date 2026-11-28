@@ -73,8 +73,9 @@ Report company profile status separately from offer verdict and market status. T
 
 ## Autonomous product direction
 
-The owner has approved an autonomous SDR Assistant product model. This section records the
-product direction; Stage 05 and the communication stages are planned, not implemented.
+The owner has approved a simplified autonomous SDR Assistant product model. This section records
+the approved direction. Stage 01–05 research is implemented; the communication stages are
+delivered by SDR-010 to SDR-013.
 
 ### Autonomous workflow
 
@@ -90,14 +91,52 @@ The assistant then runs, without per-company human intervention:
 2. 02 — Page Collection.
 3. 03 — Page Assessment.
 4. 04 — Company Profiling.
-5. 05 — Lead Qualification and Contact Discovery. **Planned, not implemented.**
+5. 05 — Contact Discovery.
 
-After the research is complete, the human configures the email account, the initial email subject
-and message, and the communication schedule. The assistant then builds the eligible recipient
-queue, sends individual messages according to the configured schedule, persists outgoing
-communication outcomes, synchronizes the mailbox once or twice per day, associates incoming
-replies with the relevant communication records, and updates communication history and
-statistics.
+After the research is complete, the human configures the email account and its reusable
+signature, the initial email subject and message, the research attachments, and whether the
+first contact starts immediately or at a specific date and time. The assistant then prepares one
+initial contact per company, sends individual emails at the configured interval, and persists the
+communication history.
+
+### One initial contact per company
+
+- One research produces at most one initial contact per company.
+- The owner writes one initial email per research; it is shared by every recipient. AI
+  personalization is deferred.
+- The initial email is composed from the owner-authored subject and message, the assigned email
+  account's reusable signature and the research's attachments. The signature belongs to the email
+  account and is reused across researches; attachments belong to the research.
+- There are no automatic follow-ups. A company that does not respond is not contacted again
+  automatically.
+- Further communication with a company happens only after that company has responded.
+
+### Before initial outreach
+
+Before the first email is sent, the assistant inspects the existing mailbox history and does not
+contact a company that has already been approached about the same or a sufficiently similar
+commercial subject. This applies across researches and mailboxes. The check depends on the
+mailbox synchronization and previous-communication awareness delivered by SDR-011; until that
+exists, initial outreach is prepared but not sent automatically.
+
+### Timing
+
+- First contact can start immediately or be scheduled for a specific date and time.
+- Individual emails are sent at a configurable interval of X minutes.
+- There is no recurring campaign calendar, no weekday schedule and no complex campaign
+  management system.
+- Mailbox synchronization runs globally once or twice per day.
+- Each configured mailbox offers a manual **Check mail now** action, so the owner can refresh the
+  history without waiting for the next automatic run.
+
+### Communication history
+
+- Every sent and received message becomes part of a persistent communication history.
+- A communication record stays associated with the research and the company it belongs to.
+- Response statistics are derived from that history: for example contacted companies, responses
+  and response rate per research.
+- The history is the source of truth for whether a company has already been contacted and for all
+  later reply intelligence.
 
 ### No mandatory manual review
 
@@ -122,9 +161,11 @@ available for historical inspection and market intelligence.
 ### Initial message and recipient eligibility
 
 The initial email is authored by the owner and shared by all eligible recipients. AI
-personalization is deferred. Recipient eligibility must account for applicable outreach
-restrictions, suppression lists, opt-outs, invalid addresses and duplicate prevention. A publicly
-discovered email address is not, by itself, permission to send marketing messages.
+personalization is deferred. The email account contributes a reusable signature and the research
+contributes its attachments; neither changes the message per company. Recipient eligibility must
+account for applicable outreach restrictions, suppression lists, opt-outs, invalid addresses,
+duplicate prevention and the previous-communication rule above. A publicly discovered email
+address is not, by itself, permission to send marketing messages.
 
 ### Core product principle
 
@@ -133,13 +174,10 @@ outcomes rather than performing the assistant's work.
 
 ### Planned sequence
 
-- SDR-007 — Research Results Presentation and Market.
-- SDR-007A — Automatic Lead Qualification and Contact Discovery.
-- SDR-008 — Email Account Assignment.
-- SDR-009 — Initial Email and Automatic Recipient Queue.
-- SDR-010 — Scheduled Email Sending and Communication History.
-- SDR-011 — Automatic Mailbox Synchronization.
-- SDR-012 — AI-Assisted Reply Management, deferred.
+- SDR-010 — Email Composition Completion.
+- SDR-011 — Mailbox Synchronization and Previous Communication Awareness.
+- SDR-012 — First Contact Execution.
+- SDR-013 — Reply Intelligence and Communication Continuation.
 
 ## Acceptance criteria
 

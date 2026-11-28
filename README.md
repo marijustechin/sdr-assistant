@@ -96,8 +96,12 @@ Or run one side: `npm run dev:api` / `npm run dev:web`.
 | `GET /lead-qualification-runs/:runId/results` | Cursor-paginated retained/excluded Stage 05 results |
 | `GET /settings` / `PATCH /settings` | Settings registry and validated updates |
 | `GET /email-accounts` / `GET /email-accounts/:id` | Configured email accounts (no credentials) |
-| `POST /email-accounts` / `PATCH /email-accounts/:id` | Create/update an email account, including enable/disable |
+| `POST /email-accounts` / `PATCH /email-accounts/:id` | Create/update an email account, including enable/disable and the optional reusable signature |
 | `POST /email-accounts/:id/test-smtp` / `POST /email-accounts/:id/test-imap` | Verify the saved SMTP or IMAP configuration (no sending, no mailbox access) |
+| `GET /research/:jobId/communication/attachments` | Attachment metadata and the active limits (never the file bytes) |
+| `POST /research/:jobId/communication/attachments` | Upload one attachment as a raw `application/octet-stream` body |
+| `DELETE /research/:jobId/communication/attachments/:attachmentId` | Remove one research attachment |
+| `POST /research/:jobId/communication/test-email` | Send one test email to a validated manual recipient through the assigned account |
 
 The web app reads `API_URL` (default `http://localhost:4000`). The API has no CORS;
 browser requests go through same-origin Next.js route handlers.
@@ -117,9 +121,18 @@ result, and previous published Stage 05 results remain until a new complete resu
 ### Email accounts
 
 **Settings → Email accounts** manages the mailboxes that future outreach will use. Each
-account has its own sender identity, SMTP settings and IMAP settings. Accounts can be
-created, edited, enabled and disabled; there is no hard deletion, no sending and no
-incoming-mail synchronization.
+account has its own sender identity, SMTP settings, IMAP settings and an optional reusable
+signature. Accounts can be created, edited, enabled and disabled; there is no hard deletion, no
+sending and no incoming-mail synchronization.
+
+The signature is optional and belongs to the account: closing greeting, company name, telephone
+number, website link, WhatsApp link and additional text. The sender name is not a separate
+signature field — it is taken from the account's existing **Sender name** field. Blank fields are
+stored as unset, and the rendered order is closing greeting, sender name, company name, telephone,
+website, WhatsApp and finally the additional text. Website and WhatsApp must be full `http://` or
+`https://` links, so the research preview can render them as clickable anchors. The signature is
+plain text — there is no rich-text editor — and it is reused by every research assigned to that
+account.
 
 Each protocol can be tested from the account list or the edit form. A test uses only the
 saved configuration and requires a connection, TLS negotiation and authentication before it
@@ -159,9 +172,44 @@ publicly.
 The `email_accounts` table is created by the additive migration
 `20261125230000_add_email_account`; the independent verification columns are added by the
 additive migration `20261126120000_add_email_account_verification`. Both are recorded in the
-repository and applied to the local database (10 of 10 migrations). Real-provider connection
+repository and applied to the local database (15 of 15 migrations as of 2026-11-28). Real-provider connection
 verification is a separate owner-authorized step; it was completed on 2026-11-26 for the
 configured account, so connection verification no longer depends on the mock API.
+
+### Initial email composition
+
+The research **Settings → Initial email** section holds the owner-authored subject and plain-text
+message, and shows exactly what will be composed: the assigned account's signature, the research's
+attachments and a complete preview of subject, message, signature and attachment list. Nothing is
+sent automatically; an explicit test send is described below.
+
+Attachments belong to the research, not to the email account. They are uploaded through a Server
+Action as a raw binary body, stored privately in PostgreSQL (`research_attachments`) together with
+their filename, media type, size and SHA-256, and listed with filename and size. Only metadata is
+ever returned by the API; the file bytes are never served over HTTP. Removal deletes metadata and
+content together. The limits are configurable in `apps/api/.env`:
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `ATTACHMENT_MAX_FILE_BYTES` | 10 MiB | Maximum size of one attachment |
+| `ATTACHMENT_MAX_ATTACHMENTS` | 5 | Maximum attachments per research |
+| `ATTACHMENT_MAX_TOTAL_BYTES` | 25 MiB | Maximum total attachment bytes per research |
+
+Uploads are validated on the client for immediate feedback and again by the API, which is
+authoritative. The signature columns and the attachment table are added by the additive migration
+`20261127233000_add_signature_and_research_attachments`, and the test-send audit table by
+`20261128190000_add_research_test_email_sends`; both are applied to the local database (15 of 15
+migrations as of 2026-11-28).
+
+Below the complete preview, **Send test email** sends exactly one message to a manually entered
+recipient through the assigned account, after the recipient is validated. Sending requires a saved
+composition: unsaved subject or message changes block it. The message uses the saved subject,
+message, the account's closing greeting and sender name, the remaining signature fields in the
+accepted order and every research attachment. The screen shows sending progress and the actual
+result — a definitive failure, or an uncertain acceptance that says the message may or may not
+have been delivered. There is no automatic retry. Each attempt is recorded separately in
+`research_test_email_sends`; the prepared recipient queue, first-contact statistics and automatic
+communication are never touched. First-contact execution (SDR-012) remains planned.
 
 ### Research flow
 

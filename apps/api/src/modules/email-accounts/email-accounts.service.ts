@@ -39,6 +39,12 @@ export type EmailAccountCreateData = {
   imapSecurity: EmailAccountRow['imapSecurity'];
   imapUsername: string;
   imapPasswordEncrypted: string;
+  signatureName: string | null;
+  signatureCompany: string | null;
+  signaturePhone: string | null;
+  signatureWebsite: string | null;
+  signatureWhatsapp: string | null;
+  signatureText: string | null;
 };
 
 /** Changed columns of one update; an omitted column keeps its stored value. */
@@ -63,6 +69,12 @@ export type EmailAccountUpdateData = {
   imapVerificationStatus?: EmailVerificationStatus;
   imapLastCheckedAt?: Date | null;
   imapVerificationFailureCode?: EmailVerificationFailureCode | null;
+  signatureName?: string | null;
+  signatureCompany?: string | null;
+  signaturePhone?: string | null;
+  signatureWebsite?: string | null;
+  signatureWhatsapp?: string | null;
+  signatureText?: string | null;
 };
 
 @Injectable()
@@ -105,6 +117,12 @@ export class EmailAccountsService {
         imapSecurity: dto.imapSecurity,
         imapUsername: dto.imapUsername,
         imapPasswordEncrypted: encryptCredential(dto.imapPassword, key),
+        signatureName: dto.signatureName ?? null,
+        signatureCompany: dto.signatureCompany ?? null,
+        signaturePhone: dto.signaturePhone ?? null,
+        signatureWebsite: dto.signatureWebsite ?? null,
+        signatureWhatsapp: dto.signatureWhatsapp ?? null,
+        signatureText: dto.signatureText ?? null,
       },
     });
 
@@ -188,6 +206,32 @@ export class EmailAccountsService {
         dto.imapPassword,
         this.requireEncryptionKey(),
       );
+    }
+
+    // The signature is metadata, not connection configuration: editing it never
+    // invalidates a protocol verification result.
+    if (dto.signatureName !== undefined) {
+      data.signatureName = dto.signatureName;
+    }
+
+    if (dto.signatureCompany !== undefined) {
+      data.signatureCompany = dto.signatureCompany;
+    }
+
+    if (dto.signaturePhone !== undefined) {
+      data.signaturePhone = dto.signaturePhone;
+    }
+
+    if (dto.signatureWebsite !== undefined) {
+      data.signatureWebsite = dto.signatureWebsite;
+    }
+
+    if (dto.signatureWhatsapp !== undefined) {
+      data.signatureWhatsapp = dto.signatureWhatsapp;
+    }
+
+    if (dto.signatureText !== undefined) {
+      data.signatureText = dto.signatureText;
     }
 
     if (smtpConfigurationChanged(existing, dto)) {

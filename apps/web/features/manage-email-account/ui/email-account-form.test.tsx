@@ -69,6 +69,14 @@ const ACCOUNT: EmailAccount = {
   imapVerificationStatus: 'NOT_TESTED',
   imapLastCheckedAt: null,
   imapVerificationFailureCode: null,
+  signature: {
+    name: 'Best regards,',
+    companyName: 'Synthetic Trading',
+    phone: '+370 6000 0000',
+    website: 'https://example.test',
+    whatsapp: 'https://wa.me/37060000000',
+    text: 'Monday to Friday',
+  },
   createdAt: '2026-11-25T10:00:00.000Z',
   updatedAt: '2026-11-25T10:00:00.000Z',
 };
@@ -182,6 +190,45 @@ describe('EmailAccountForm', () => {
     expect(cardFor('Incoming mail (IMAP)').parentElement?.className).toContain(
       'lg:grid-cols-2',
     );
+  });
+
+  it('renders the optional signature fields of an existing account', () => {
+    render(<EmailAccountForm mode="edit" account={ACCOUNT} />);
+
+    expect(
+      screen.getByLabelText<HTMLInputElement>('Closing greeting').value,
+    ).toBe('Best regards,');
+    expect(screen.getByLabelText<HTMLInputElement>('Company name').value).toBe(
+      'Synthetic Trading',
+    );
+    expect(
+      screen.getByLabelText<HTMLInputElement>('Telephone number').value,
+    ).toBe('+370 6000 0000');
+    expect(screen.getByLabelText<HTMLInputElement>('Website link').value).toBe(
+      'https://example.test',
+    );
+    expect(screen.getByLabelText<HTMLInputElement>('WhatsApp link').value).toBe(
+      'https://wa.me/37060000000',
+    );
+    expect(
+      screen.getByLabelText<HTMLTextAreaElement>('Additional signature text')
+        .value,
+    ).toBe('Monday to Friday');
+  });
+
+  it('starts with empty signature fields on creation', () => {
+    render(<EmailAccountForm mode="create" />);
+
+    expect(
+      screen.getByLabelText<HTMLInputElement>('Closing greeting').value,
+    ).toBe('');
+    expect(screen.getByLabelText<HTMLInputElement>('Website link').value).toBe(
+      '',
+    );
+    expect(
+      screen.getByLabelText<HTMLTextAreaElement>('Additional signature text')
+        .value,
+    ).toBe('');
   });
 
   it('initializes both usernames from the email address on creation', () => {
